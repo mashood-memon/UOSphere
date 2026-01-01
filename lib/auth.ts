@@ -1,11 +1,9 @@
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
-import { PrismaAdapter } from "@auth/prisma-adapter";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
-  adapter: PrismaAdapter(prisma),
   session: {
     strategy: "jwt",
   },
@@ -21,11 +19,14 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       },
       async authorize(credentials) {
         if (!credentials?.identifier || !credentials?.password) {
+          console.log("Missing credentials");
           throw new Error("Missing credentials");
         }
 
         const identifier = credentials.identifier as string;
         const password = credentials.password as string;
+
+        console.log("Attempting login with identifier:", identifier);
 
         // Find user by email or roll number
         const user = await prisma.user.findFirst({
@@ -34,7 +35,10 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           },
         });
 
+        console.log("User found:", user ? "Yes" : "No");
+
         if (!user || !user.passwordHash) {
+          console.log("User not found or no password hash");
           throw new Error("Invalid credentials");
         }
 
@@ -44,7 +48,10 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           user.passwordHash
         );
 
+        console.log("Password valid:", isPasswordValid);
+
         if (!isPasswordValid) {
+          console.log("Invalid password");
           throw new Error("Invalid credentials");
         }
 

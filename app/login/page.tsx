@@ -13,8 +13,11 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { useToast } from "@/hooks/use-toast";
+import { signIn } from "next-auth/react";
 
 export default function LoginPage() {
+  const { toast } = useToast();
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -27,26 +30,39 @@ export default function LoginPage() {
     const password = formData.get("password") as string;
 
     try {
-      const response = await fetch("/api/auth/callback/credentials", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          identifier,
-          password,
-        }),
+      const result = await signIn("credentials", {
+        identifier,
+        password,
+        redirect: false,
       });
 
-      if (response.ok) {
-        // Redirect to home page on successful login
-        window.location.href = "/home";
+      console.log("SignIn result full:", JSON.stringify(result));
+
+      // Check for successful authentication
+      // If status is 200 and no error, login succeeded
+      if (result?.status === 200 && !result?.error) {
+        toast({
+          title: "Login successful!",
+          description: "Welcome back to UOSphere",
+        });
+        setTimeout(() => {
+          window.location.href = "/home";
+        }, 500);
       } else {
-        alert("Invalid credentials. Please try again.");
+        // Authentication failed
+        toast({
+          title: "Login failed",
+          description: "Invalid email/roll number or password.",
+          variant: "destructive",
+        });
       }
     } catch (error) {
       console.error("Login error:", error);
-      alert("An error occurred. Please try again.");
+      toast({
+        title: "Error",
+        description: "An error occurred. Please try again.",
+        variant: "destructive",
+      });
     } finally {
       setIsLoading(false);
     }

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { extractTextFromIDCard, validateExtractedData } from "@/lib/ocr";
+import { uploadToCloudinary } from "@/lib/cloudinary";
 
 export async function POST(request: Request) {
   try {
@@ -53,7 +54,9 @@ export async function POST(request: Request) {
       return NextResponse.json(
         {
           success: false,
-          errors: validation.errors,
+          error:
+            validation.errors?.join(", ") ||
+            "Invalid data extracted from ID card",
         },
         { status: 400 }
       );
@@ -68,14 +71,16 @@ export async function POST(request: Request) {
       return NextResponse.json(
         {
           success: false,
-          errors: ["This roll number is already registered"],
+          error: "This roll number is already registered",
         },
         { status: 400 }
       );
     }
 
-    // TODO: Upload image to Cloudinary here
-    const imageUrl = "/placeholder-id-card.jpg"; // Mock URL for now
+    // Upload image to Cloudinary
+    console.log("Uploading ID card to Cloudinary...");
+    const imageUrl = await uploadToCloudinary(buffer, "id-cards");
+    console.log("Upload successful:", imageUrl);
 
     return NextResponse.json({
       success: true,

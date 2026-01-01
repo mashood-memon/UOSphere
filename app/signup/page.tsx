@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { useToast } from "@/hooks/use-toast";
 import {
   Check,
   X,
@@ -106,6 +107,7 @@ const lookingForOptions = [
 ];
 
 export default function SignupPage() {
+  const { toast } = useToast();
   const [currentStep, setCurrentStep] = useState(1);
   const totalSteps = 5;
 
@@ -113,6 +115,7 @@ export default function SignupPage() {
   const [formData, setFormData] = useState({
     // Step 1
     idCardImage: null as File | null,
+    idCardImageUrl: "", // Cloudinary URL from OCR upload
     // Step 2
     name: "",
     rollNo: "",
@@ -163,8 +166,8 @@ export default function SignupPage() {
         degreeProgram: formData.degreeProgram,
         campus: formData.campus,
         bio: formData.bio,
-        profilePicUrl: null, // TODO: Upload to Cloudinary
-        idCardImageUrl: null, // TODO: Upload to Cloudinary
+        profilePicUrl: null, // TODO: Add profile pic upload in settings
+        idCardImageUrl: formData.idCardImageUrl, // From Cloudinary
         interests: formData.selectedInterests,
         lookingFor: formData.lookingFor,
       };
@@ -180,14 +183,25 @@ export default function SignupPage() {
       const data = await response.json();
 
       if (response.ok) {
-        alert("Registration successful! Please log in.");
+        toast({
+          title: "Registration successful!",
+          description: "Please log in to continue.",
+        });
         window.location.href = "/login";
       } else {
-        alert(data.error || "Registration failed. Please try again.");
+        toast({
+          title: "Registration failed",
+          description: data.error || "Please try again.",
+          variant: "destructive",
+        });
       }
     } catch (error) {
       console.error("Registration error:", error);
-      alert("An error occurred. Please try again.");
+      toast({
+        title: "Error",
+        description: "An error occurred. Please try again.",
+        variant: "destructive",
+      });
     }
   };
 
@@ -316,67 +330,122 @@ export default function SignupPage() {
                     // Validate current step before proceeding
                     if (currentStep === 1) {
                       if (!formData.idCardImage) {
-                        alert("Please upload your ID card to continue");
+                        toast({
+                          title: "ID Card Required",
+                          description: "Please upload your ID card to continue",
+                          variant: "destructive",
+                        });
                         return;
                       }
                       if (!formData.rollNo || !formData.name) {
-                        alert(
-                          "Please wait for ID card information to be extracted"
-                        );
+                        toast({
+                          title: "Processing",
+                          description:
+                            "Please wait for ID card information to be extracted",
+                          variant: "destructive",
+                        });
                         return;
                       }
                     } else if (currentStep === 2) {
                       if (!formData.name?.trim()) {
-                        alert("Please enter your full name");
+                        toast({
+                          title: "Name Required",
+                          description: "Please enter your full name",
+                          variant: "destructive",
+                        });
                         return;
                       }
                       if (!formData.rollNo?.trim()) {
-                        alert("Please enter your roll number");
+                        toast({
+                          title: "Roll Number Required",
+                          description: "Please enter your roll number",
+                          variant: "destructive",
+                        });
                         return;
                       }
                       if (!formData.department?.trim()) {
-                        alert("Please enter your department");
+                        toast({
+                          title: "Department Required",
+                          description: "Please enter your department",
+                          variant: "destructive",
+                        });
                         return;
                       }
                       if (!formData.batch?.trim()) {
-                        alert("Please enter your batch");
+                        toast({
+                          title: "Batch Required",
+                          description: "Please enter your batch",
+                          variant: "destructive",
+                        });
                         return;
                       }
                       if (!formData.degreeProgram?.trim()) {
-                        alert("Please enter your degree program");
+                        toast({
+                          title: "Degree Program Required",
+                          description: "Please enter your degree program",
+                          variant: "destructive",
+                        });
                         return;
                       }
                     } else if (currentStep === 3) {
                       if (!formData.email?.trim()) {
-                        alert("Please enter your email address");
+                        toast({
+                          title: "Email Required",
+                          description: "Please enter your email address",
+                          variant: "destructive",
+                        });
                         return;
                       }
                       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-                        alert("Please enter a valid email address");
+                        toast({
+                          title: "Invalid Email",
+                          description: "Please enter a valid email address",
+                          variant: "destructive",
+                        });
                         return;
                       }
                       if (!formData.password) {
-                        alert("Please enter a password");
+                        toast({
+                          title: "Password Required",
+                          description: "Please enter a password",
+                          variant: "destructive",
+                        });
                         return;
                       }
                       if (formData.password.length < 8) {
-                        alert("Password must be at least 8 characters long");
+                        toast({
+                          title: "Password Too Short",
+                          description:
+                            "Password must be at least 8 characters long",
+                          variant: "destructive",
+                        });
                         return;
                       }
                       if (formData.password !== formData.confirmPassword) {
-                        alert("Passwords do not match");
+                        toast({
+                          title: "Passwords Don't Match",
+                          description: "Please make sure passwords match",
+                          variant: "destructive",
+                        });
                         return;
                       }
                     } else if (currentStep === 4) {
                       if (formData.selectedInterests.length < 3) {
-                        alert("Please select at least 3 interests");
+                        toast({
+                          title: "Select More Interests",
+                          description: "Please select at least 3 interests",
+                          variant: "destructive",
+                        });
                         return;
                       }
                     } else if (currentStep === 5) {
                       if (formData.lookingFor.length === 0) {
-                        alert(
-                          "Please select at least one option for what you're looking for"
-                        );
+                        toast({
+                          title: "Selection Required",
+                          description:
+                            "Please select at least one option for what you're looking for",
+                          variant: "destructive",
+                        });
                         return;
                       }
                     }
@@ -406,6 +475,7 @@ interface StepProps {
 }
 
 function StepOneUploadID({ formData, setFormData }: StepProps) {
+  const { toast } = useToast();
   const [isDragging, setIsDragging] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
 
@@ -421,12 +491,14 @@ function StepOneUploadID({ formData, setFormData }: StepProps) {
       });
 
       const result = await response.json();
+      console.log("Upload result:", result);
 
       if (result.success) {
         // Store both the image and extracted data
         setFormData({
           ...formData,
           idCardImage: file,
+          idCardImageUrl: result.data.imageUrl, // Save Cloudinary URL
           name: result.data.name,
           rollNo: result.data.rollNo,
           department: result.data.department,
@@ -434,12 +506,25 @@ function StepOneUploadID({ formData, setFormData }: StepProps) {
           degreeProgram: result.data.degreeProgram,
           campus: result.data.campus,
         });
+        toast({
+          title: "Success!",
+          description: "ID card data extracted successfully",
+        });
       } else {
-        alert(result.error || "Failed to extract data from ID card");
+        console.log("Showing error toast:", result.error);
+        toast({
+          title: "Extraction Failed",
+          description: result.error || "Failed to extract data from ID card",
+          variant: "destructive",
+        });
       }
     } catch (error) {
       console.error("Upload error:", error);
-      alert("Error uploading ID card. Please try again.");
+      toast({
+        title: "Upload Error",
+        description: "Error uploading ID card. Please try again.",
+        variant: "destructive",
+      });
     } finally {
       setIsUploading(false);
     }
