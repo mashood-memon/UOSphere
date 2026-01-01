@@ -1,0 +1,62 @@
+import { auth } from "@/lib/auth";
+import { redirect } from "next/navigation";
+
+export default async function HomePage() {
+  const session = await auth();
+
+  if (!session) {
+    redirect("/login");
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <nav className="bg-white border-b">
+        <div className="container mx-auto px-4 h-16 flex items-center justify-between">
+          <h1 className="text-2xl font-bold text-blue-600">UOSphere</h1>
+          <div className="flex items-center gap-4">
+            <div className="text-sm">
+              <p className="font-semibold">{session.user?.name}</p>
+              <p className="text-gray-600">{session.user?.rollNo}</p>
+            </div>
+            <form
+              action={async () => {
+                "use server";
+                const { signOut } = await import("@/lib/auth");
+                await signOut({ redirectTo: "/" });
+              }}
+            >
+              <button
+                type="submit"
+                className="px-4 py-2 bg-red-500 text-white rounded-md hover:bg-red-600"
+              >
+                Sign Out
+              </button>
+            </form>
+          </div>
+        </div>
+      </nav>
+
+      <main className="container mx-auto px-4 py-8">
+        <div className="max-w-4xl mx-auto">
+          <h2 className="text-3xl font-bold mb-6">Welcome to UOSphere!</h2>
+          <div className="bg-white rounded-lg shadow p-6">
+            <p className="text-lg mb-4">
+              🎉 You're now logged in as <strong>{session.user?.name}</strong>
+            </p>
+            <div className="space-y-2 text-gray-700">
+              <p>📚 Department: {session.user?.department}</p>
+              <p>🎓 Batch: {session.user?.batch}</p>
+              <p>🆔 Roll No: {session.user?.rollNo}</p>
+            </div>
+            <div className="mt-6 bg-blue-50 rounded-lg p-4">
+              <p className="text-sm text-blue-700">
+                <strong>Coming soon:</strong> Discover peers, join communities,
+                and start connecting!
+              </p>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+  );
+}

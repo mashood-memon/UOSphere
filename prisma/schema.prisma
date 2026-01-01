@@ -1,0 +1,195 @@
+// This is your Prisma schema file
+
+generator client {
+    provider = "prisma-client-js"
+}
+
+datasource db {
+    provider = "postgresql"
+    url      = env("DATABASE_URL")
+}
+
+model User {
+    id             String   @id @default(uuid())
+    rollNo         String   @unique
+    name           String
+    email          String?  @unique
+    phone          String?
+    passwordHash   String
+    department     String
+    batch          String
+    batchYear      Int
+    degreeProgram  String?
+    campus         String?
+    bio            String?
+    profilePicUrl  String?
+    idCardImageUrl String
+    isVerified     Boolean  @default(true)
+    createdAt      DateTime @default(now())
+    updatedAt      DateTime @updatedAt
+
+    interests           Interest[]
+    lookingFor          LookingFor[]
+    coursesCanHelp      CourseHelp[]      @relation("CanHelp")
+    coursesNeedHelp     CourseHelp[]      @relation("NeedHelp")
+    posts               Post[]
+    comments            Comment[]
+    reactions           Reaction[]
+    communities         CommunityMember[]
+    sentConnections     Connection[]      @relation("Sender")
+    receivedConnections Connection[]      @relation("Receiver")
+    sentMessages        Message[]         @relation("Sender")
+    receivedMessages    Message[]         @relation("Receiver")
+    notifications       Notification[]
+}
+
+model Interest {
+    id       String @id @default(uuid())
+    userId   String
+    category String
+    tag      String
+    user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+    @@unique([userId, tag])
+}
+
+model LookingFor {
+    id     String @id @default(uuid())
+    userId String
+    type   String
+    user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+    @@unique([userId, type])
+}
+
+model CourseHelp {
+    id            String @id @default(uuid())
+    courseName    String
+    canHelpUsers  User[] @relation("CanHelp")
+    needHelpUsers User[] @relation("NeedHelp")
+}
+
+model Connection {
+    id         String   @id @default(uuid())
+    senderId   String
+    receiverId String
+    status     String   @default("pending")
+    createdAt  DateTime @default(now())
+
+    sender   User @relation("Sender", fields: [senderId], references: [id], onDelete: Cascade)
+    receiver User @relation("Receiver", fields: [receiverId], references: [id], onDelete: Cascade)
+
+    @@unique([senderId, receiverId])
+    @@index([senderId])
+    @@index([receiverId])
+}
+
+model Community {
+    id          String   @id @default(uuid())
+    name        String
+    description String?
+    type        String
+    isPublic    Boolean  @default(true)
+    coverImage  String?
+    createdById String
+    createdAt   DateTime @default(now())
+
+    members CommunityMember[]
+    posts   Post[]
+
+    @@index([type])
+}
+
+model CommunityMember {
+    id          String   @id @default(uuid())
+    userId      String
+    communityId String
+    role        String   @default("member")
+    joinedAt    DateTime @default(now())
+
+    user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+    community Community @relation(fields: [communityId], references: [id], onDelete: Cascade)
+
+    @@unique([userId, communityId])
+    @@index([communityId])
+}
+
+model Post {
+    id          String   @id @default(uuid())
+    userId      String
+    communityId String?
+    content     String   @db.Text
+    imageUrls   String[]
+    postType    String   @default("text")
+    isPinned    Boolean  @default(false)
+    createdAt   DateTime @default(now())
+    updatedAt   DateTime @updatedAt
+
+    user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+    community Community? @relation(fields: [communityId], references: [id], onDelete: Cascade)
+    comments  Comment[]
+    reactions Reaction[]
+
+    @@index([communityId])
+    @@index([userId])
+    @@index([createdAt])
+}
+
+model Comment {
+    id        String   @id @default(uuid())
+    postId    String
+    userId    String
+    content   String   @db.Text
+    createdAt DateTime @default(now())
+
+    post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+    user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+    @@index([postId])
+}
+
+model Reaction {
+    id        String   @id @default(uuid())
+    postId    String
+    userId    String
+    type      String
+    createdAt DateTime @default(now())
+
+    post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+    user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+    @@unique([postId, userId])
+    @@index([postId])
+}
+
+model Message {
+    id         String   @id @default(uuid())
+    senderId   String
+    receiverId String
+    content    String   @db.Text
+    imageUrl   String?
+    isRead     Boolean  @default(false)
+    createdAt  DateTime @default(now())
+
+    sender   User @relation("Sender", fields: [senderId], references: [id], onDelete: Cascade)
+    receiver User @relation("Receiver", fields: [receiverId], references: [id], onDelete: Cascade)
+
+    @@index([senderId, receiverId])
+    @@index([createdAt])
+}
+
+model Notification {
+    id        String   @id @default(uuid())
+    userId    String
+    type      String
+    title     String
+    message   String
+    linkUrl   String?
+    isRead    Boolean  @default(false)
+    createdAt DateTime @default(now())
+
+    user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+    @@index([userId, isRead])
+    @@index([createdAt])
+}
