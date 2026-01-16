@@ -1,15 +1,40 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { extractTextFromIDCard, validateExtractedData } from "@/lib/ocr";
 import { uploadToCloudinary } from "@/lib/cloudinary";
 
+/**
+ * Upload ID card and validate pre-extracted data
+ * OCR is now done on CLIENT SIDE to avoid serverless limitations
+ */
 export async function POST(request: Request) {
   try {
     const formData = await request.formData();
     const file = formData.get("idCard") as File;
 
+    // Get pre-extracted data from client
+    const extractedDataStr = formData.get("extractedData") as string;
+
     if (!file) {
       return NextResponse.json({ error: "No file uploaded" }, { status: 400 });
+    }
+
+    if (!extractedDataStr) {
+      return NextResponse.json(
+        { error: "No extracted data provided" },
+        { status: 400 }
+      );
+    }
+
+    // Parse extracted data
+    let extractedData;
+    try {
+      extractedData = JSON.parse(extractedDataStr);
+    } catch (err) {
+      console.error("Failed to parse extracted data:", err);
+      return NextResponse.json(
+        { error: "Invalid extracted data format" },
+        { status: 400 }
+      );
     }
 
     // Validate file type
@@ -20,51 +45,63 @@ export async function POST(request: Request) {
       );
     }
 
-    // Validate file size (10MB max)
-    const maxSize = 10 * 1024 * 1024; // 10MB
+    // Validate file size (4MB max for Vercel)
+    const maxSize = 4 * 1024 * 1024; // 4MB
     if (file.size > maxSize) {
       return NextResponse.json(
-        { error: "File size must be less than 10MB" },
+        { error: "File size must be less than 4MB" },
         { status: 400 }
       );
     }
 
-    // Convert file to buffer for OCR processing
-    const arrayBuffer = await file.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
+    // Server-side validation of extracted data
+    const { rollNo, name, department, batch, degreeProgram } = extractedData;
 
-    // Extract text using Tesseract.js OCR
-    console.log("Starting OCR extraction...");
-    const ocrResult = await extractTextFromIDCard(buffer);
-
-    if (!ocrResult.success || !ocrResult.extractedData) {
+    if (!rollNo || !name || !department || !batch) {
       return NextResponse.json(
-        {
-          success: false,
-          error: ocrResult.error || "Failed to extract data from ID card",
-        },
+        { error: "Missing required fields in extracted data" },
         { status: 400 }
       );
     }
 
-    // Validate the extracted data
-    const validation = validateExtractedData(ocrResult.extractedData);
-
-    if (!validation.valid) {
+    // Validate roll number format
+    const rollNoPattern = /^2K\d{2}\/[A-Z]{2,4}\/\d+$/;
+    if (!rollNoPattern.test(rollNo)) {
       return NextResponse.json(
-        {
-          success: false,
-          error:
-            validation.errors?.join(", ") ||
-            "Invalid data extracted from ID card",
-        },
+        { error: "Invalid roll number format" },
         { status: 400 }
       );
+    }
+
+    // Validate batch year (improved logic - allow up to 6 years)
+    const currentYear = new Date().getFullYear();
+    const batchYearMatch = batch.match(/2K(\d{2})/);
+
+    if (batchYearMatch) {
+      const batchYear = 2000 + parseInt(batchYearMatch[1]);
+      const yearsSinceBatch = currentYear - batchYear;
+
+      if (yearsSinceBatch > 6) {
+        return NextResponse.json(
+          {
+            error:
+              "This student has likely graduated. Only current students can register.",
+          },
+          { status: 400 }
+        );
+      }
+
+      if (batchYear > currentYear) {
+        return NextResponse.json(
+          { error: "Invalid batch year. Cannot register future students." },
+          { status: 400 }
+        );
+      }
     }
 
     // Check for duplicate roll number in database
     const existingUser = await prisma.user.findUnique({
-      where: { rollNo: ocrResult.extractedData.rollNo },
+      where: { rollNo: rollNo },
     });
 
     if (existingUser) {
@@ -77,6 +114,10 @@ export async function POST(request: Request) {
       );
     }
 
+    // Convert file to buffer for upload
+    const arrayBuffer = await file.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+
     // Upload image to Cloudinary
     console.log("Uploading ID card to Cloudinary...");
     const imageUrl = await uploadToCloudinary(buffer, "id-cards");
@@ -85,17 +126,21 @@ export async function POST(request: Request) {
     return NextResponse.json({
       success: true,
       data: {
-        name: ocrResult.extractedData.name,
-        rollNo: ocrResult.extractedData.rollNo,
-        department: ocrResult.extractedData.department,
-        batch: ocrResult.extractedData.batch,
-        degreeProgram: ocrResult.extractedData.degreeProgram,
+        name,
+        rollNo,
+        department,
+        batch,
+        degreeProgram,
         imageUrl,
-        confidence: ocrResult.confidence,
       },
     });
   } catch (error) {
     console.error("ID upload error:", error);
+    // Better error logging for debugging
+    if (error instanceof Error) {
+      console.error("Error message:", error.message);
+      console.error("Error stack:", error.stack);
+    }
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }

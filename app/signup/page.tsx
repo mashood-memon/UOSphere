@@ -25,6 +25,7 @@ import {
   User,
   Upload,
 } from "lucide-react";
+import { extractTextFromIDCard } from "@/lib/ocr-client";
 
 // Interest categories with tags
 const interestCategories = {
@@ -477,13 +478,46 @@ interface StepProps {
 function StepOneUploadID({ formData, setFormData }: StepProps) {
   const { toast } = useToast();
   const [isDragging, setIsDragging] = useState(false);
-  const [isUploading, setIsUploading] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [ocrProgress, setOcrProgress] = useState(0);
 
-  const uploadAndExtractData = async (file: File) => {
-    setIsUploading(true);
+  const processIDCard = async (file: File) => {
+    setIsProcessing(true);
+    setOcrProgress(0);
+
     try {
+      // Step 1: Extract data using CLIENT-SIDE OCR (Tesseract.js)
+      toast({
+        title: "Processing...",
+        description: "Extracting data from ID card using OCR",
+      });
+
+      const ocrResult = await extractTextFromIDCard(file, (progress) => {
+        setOcrProgress(progress);
+      });
+
+      if (!ocrResult.success || !ocrResult.extractedData) {
+        toast({
+          title: "Extraction Failed",
+          description: ocrResult.error || "Failed to extract data from ID card",
+          variant: "destructive",
+        });
+        setIsProcessing(false);
+        return;
+      }
+
+      // Step 2: Upload image and validate with server
+      toast({
+        title: "Uploading...",
+        description: "Validating and uploading ID card",
+      });
+
       const formDataToSend = new FormData();
       formDataToSend.append("idCard", file);
+      formDataToSend.append(
+        "extractedData",
+        JSON.stringify(ocrResult.extractedData)
+      );
 
       const response = await fetch("/api/auth/upload-id", {
         method: "POST",
@@ -491,7 +525,6 @@ function StepOneUploadID({ formData, setFormData }: StepProps) {
       });
 
       const result = await response.json();
-      console.log("Upload result:", result);
 
       if (result.success) {
         // Store both the image and extracted data
@@ -504,29 +537,30 @@ function StepOneUploadID({ formData, setFormData }: StepProps) {
           department: result.data.department,
           batch: result.data.batch,
           degreeProgram: result.data.degreeProgram,
-          campus: result.data.campus,
         });
         toast({
           title: "Success!",
-          description: "ID card data extracted successfully",
+          description: `ID card data extracted successfully (${Math.round(
+            ocrResult.confidence
+          )}% confidence)`,
         });
       } else {
-        console.log("Showing error toast:", result.error);
         toast({
-          title: "Extraction Failed",
-          description: result.error || "Failed to extract data from ID card",
+          title: "Validation Failed",
+          description: result.error || "Failed to validate ID card data",
           variant: "destructive",
         });
       }
     } catch (error) {
-      console.error("Upload error:", error);
+      console.error("Processing error:", error);
       toast({
-        title: "Upload Error",
-        description: "Error uploading ID card. Please try again.",
+        title: "Processing Error",
+        description: "Error processing ID card. Please try again.",
         variant: "destructive",
       });
     } finally {
-      setIsUploading(false);
+      setIsProcessing(false);
+      setOcrProgress(0);
     }
   };
 
@@ -535,14 +569,14 @@ function StepOneUploadID({ formData, setFormData }: StepProps) {
     setIsDragging(false);
     const droppedFile = e.dataTransfer.files[0];
     if (droppedFile && droppedFile.type.startsWith("image/")) {
-      uploadAndExtractData(droppedFile);
+      processIDCard(droppedFile);
     }
   };
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
     if (selectedFile) {
-      uploadAndExtractData(selectedFile);
+      processIDCard(selectedFile);
     }
   };
 
@@ -571,14 +605,27 @@ function StepOneUploadID({ formData, setFormData }: StepProps) {
         onDragLeave={() => setIsDragging(false)}
         onDrop={handleDrop}
       >
-        {isUploading ? (
+        {isProcessing ? (
           <div className="space-y-4">
             <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto animate-pulse">
               <Upload className="w-8 h-8 text-blue-600" />
             </div>
-            <p className="text-sm text-gray-600">
-              Extracting data from ID card...
+            <p className="text-sm text-gray-600 font-semibold">
+              Processing ID card...
             </p>
+            {ocrProgress > 0 && (
+              <div className="max-w-xs mx-auto">
+                <div className="w-full bg-gray-200 rounded-full h-2">
+                  <div
+                    className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                    style={{ width: `${ocrProgress}%` }}
+                  />
+                </div>
+                <p className="text-xs text-gray-500 mt-2">
+                  Extracting text: {ocrProgress}%
+                </p>
+              </div>
+            )}
           </div>
         ) : formData.idCardImage ? (
           <div className="space-y-4">
@@ -634,7 +681,7 @@ function StepOneUploadID({ formData, setFormData }: StepProps) {
               </label>
               <span className="text-gray-600"> or drag and drop</span>
             </div>
-            <p className="text-xs text-gray-500">PNG, JPG, WEBP up to 10MB</p>
+            <p className="text-xs text-gray-500">PNG, JPG, WEBP up to 4MB</p>
           </div>
         )}
       </div>

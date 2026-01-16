@@ -58,50 +58,55 @@ export async function POST(request: Request) {
     // Hash password
     const passwordHash = await bcrypt.hash(password, 12);
 
-    // Create user in database
-    const user = await prisma.user.create({
-      data: {
-        name,
-        rollNo,
-        email,
-        phone: phone || null,
-        passwordHash,
-        department,
-        batch,
-        batchYear,
-        degreeProgram: degreeProgram || null,
-        campus: campus || null,
-        bio: bio || null,
-        profilePicUrl: profilePicUrl || null,
-        idCardImageUrl: idCardImageUrl || "",
-        isVerified: true, // Auto-verified via OCR
-      },
+    // Use transaction to ensure atomicity - either everything succeeds or nothing does
+    const user = await prisma.$transaction(async (tx) => {
+      // Create user
+      const newUser = await tx.user.create({
+        data: {
+          name,
+          rollNo,
+          email,
+          phone: phone || null,
+          passwordHash,
+          department,
+          batch,
+          batchYear,
+          degreeProgram: degreeProgram || null,
+          campus: campus || null,
+          bio: bio || null,
+          profilePicUrl: profilePicUrl || null,
+          idCardImageUrl: idCardImageUrl || "",
+          isVerified: true, // Auto-verified via OCR
+        },
+      });
+
+      // Create interests
+      if (interests && Array.isArray(interests) && interests.length > 0) {
+        const interestData = interests.map((tag: string) => ({
+          userId: newUser.id,
+          category: getCategoryForTag(tag),
+          tag: tag,
+        }));
+
+        await tx.interest.createMany({
+          data: interestData,
+        });
+      }
+
+      // Create lookingFor entries
+      if (lookingFor && Array.isArray(lookingFor) && lookingFor.length > 0) {
+        const lookingForData = lookingFor.map((type: string) => ({
+          userId: newUser.id,
+          type: type,
+        }));
+
+        await tx.lookingFor.createMany({
+          data: lookingForData,
+        });
+      }
+
+      return newUser;
     });
-
-    // Create interests
-    if (interests && Array.isArray(interests) && interests.length > 0) {
-      const interestData = interests.map((tag: string) => ({
-        userId: user.id,
-        category: getCategoryForTag(tag),
-        tag: tag,
-      }));
-
-      await prisma.interest.createMany({
-        data: interestData,
-      });
-    }
-
-    // Create lookingFor entries
-    if (lookingFor && Array.isArray(lookingFor) && lookingFor.length > 0) {
-      const lookingForData = lookingFor.map((type: string) => ({
-        userId: user.id,
-        type: type,
-      }));
-
-      await prisma.lookingFor.createMany({
-        data: lookingForData,
-      });
-    }
 
     // Return success (without password hash)
     const { passwordHash: _, ...userWithoutPassword } = user;
@@ -115,6 +120,11 @@ export async function POST(request: Request) {
     );
   } catch (error) {
     console.error("Registration error:", error);
+    // Better error logging for debugging
+    if (error instanceof Error) {
+      console.error("Error message:", error.message);
+      console.error("Error stack:", error.stack);
+    }
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }
