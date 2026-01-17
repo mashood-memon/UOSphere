@@ -33,6 +33,7 @@
     "pusher-js": "^8.4.0-rc2",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
+    "resend": "^6.7.0",
     "tailwind-merge": "^2.6.0",
     "tailwindcss-animate": "^1.0.7",
     "tesseract.js": "^5.1.1",
