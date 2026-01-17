@@ -41,6 +41,21 @@ model User {
     sentMessages        Message[]         @relation("Sender")
     receivedMessages    Message[]         @relation("Receiver")
     notifications       Notification[]
+    passwordResets      PasswordReset[]
+}
+
+model PasswordReset {
+    id        String   @id @default(uuid())
+    userId    String
+    token     String   @unique
+    expiresAt DateTime
+    used      Boolean  @default(false)
+    createdAt DateTime @default(now())
+
+    user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+    @@index([token])
+    @@index([userId])
 }
 
 model Interest {
