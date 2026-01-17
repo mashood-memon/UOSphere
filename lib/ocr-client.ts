@@ -17,16 +17,11 @@ export interface OCRResult {
   error?: string;
 }
 
-/**
- * Extract text from UOS Student ID Card using Tesseract.js
- * This runs on the CLIENT SIDE (browser) to avoid serverless limitations
- */
 export async function extractTextFromIDCard(
   imageFile: File,
-  onProgress?: (progress: number) => void
+  onProgress?: (progress: number) => void,
 ): Promise<OCRResult> {
   try {
-    // Run OCR with progress callback
     const {
       data: { text, confidence },
     } = await Tesseract.recognize(imageFile, "eng", {
@@ -37,10 +32,10 @@ export async function extractTextFromIDCard(
       },
     });
 
+    console.log("=== OCR Raw Output ===");
     console.log("Extracted Text:", text);
     console.log("OCR Confidence:", confidence);
 
-    // Parse the extracted text
     const parsedData = parseUOSIDCard(text, confidence);
 
     if (!parsedData.success) {
@@ -68,23 +63,23 @@ export async function extractTextFromIDCard(
   }
 }
 
-/**
- * Parse extracted text to identify UOS ID card fields
- */
 function parseUOSIDCard(
   text: string,
-  confidence: number
+  confidence: number,
 ): { success: boolean; data?: OCRResult["extractedData"]; error?: string } {
   try {
     console.log("=== Starting OCR Parsing ===");
-    console.log("Raw extracted text:", text);
-    console.log("OCR Confidence:", Math.round(confidence) + "%");
 
-    // Normalize text: uppercase, clean whitespace
     const normalizedText = text.toUpperCase().replace(/\s+/g, " ").trim();
+    const lines = text
+      .split(/[\n\r]+/)
+      .map((l) => l.trim())
+      .filter((l) => l.length > 0);
 
-    // Check if text is too short
-    if (text.length < 20) {
+    console.log("Normalized text:", normalizedText);
+    console.log("Lines:", lines);
+
+    if (text.length < 50) {
       return {
         success: false,
         error:
@@ -92,11 +87,26 @@ function parseUOSIDCard(
       };
     }
 
-    // 1. Check if it's a UOS card
-    const hasUniversityHeader =
-      /UNIVERSITY.*SINDH|SINDH.*UNIVERSITY|UNI.*SINDH/i.test(normalizedText);
+    const hasUniversity = /UNIVERSITY/i.test(normalizedText);
+    const hasSindh = /SINDH/i.test(normalizedText);
+    const hasJamshoro = /JAMSHORO/i.test(normalizedText);
+    const hasStudentOrIdentity = /STUDENT|IDENTITY/i.test(normalizedText);
+    const hasRollNoPattern = /2K\d{2}[\/\s]?[A-Z]{2,4}[\/\s]?\d+/i.test(
+      normalizedText,
+    );
 
-    if (!hasUniversityHeader) {
+    console.log("Validation checks:", {
+      hasUniversity,
+      hasSindh,
+      hasJamshoro,
+      hasStudentOrIdentity,
+      hasRollNoPattern,
+    });
+
+    const isValidUOSCard =
+      (hasUniversity || hasSindh || hasJamshoro) && hasRollNoPattern;
+
+    if (!isValidUOSCard) {
       return {
         success: false,
         error:
@@ -104,8 +114,7 @@ function parseUOSIDCard(
       };
     }
 
-    // 2. Check image quality
-    if (confidence < 70) {
+    if (confidence < 50) {
       return {
         success: false,
         error:
@@ -115,85 +124,118 @@ function parseUOSIDCard(
       };
     }
 
-    // 3. Extract Roll Number
-    let rollNoMatch = text.match(
-      /2K\d{2}[\/\-\s]\s*([A-Z]{2,4})[\/\-\s]\s*(\d+)/i
-    );
+    let rollNo = "";
+    let department = "";
+    let batch = "";
 
-    if (!rollNoMatch) {
-      rollNoMatch = text.match(/2K(\d{2})\s*([A-Z]{2,4})\s*(\d+)/i);
+    const rollNoPatterns = [
+      /2K(\d{2})[\/\-\s]*([A-Z]{2,4})[\/\-\s]*(\d+)/i,
+      /2K(\d{2})([A-Z]{2,4})(\d+)/i,
+    ];
+
+    for (const pattern of rollNoPatterns) {
+      const match = normalizedText.match(pattern);
+      if (match) {
+        const year = match[1];
+        department = match[2].toUpperCase();
+        const num = match[3];
+        rollNo = `2K${year}/${department}/${num}`;
+        batch = `2K${year}`;
+        console.log("Extracted Roll No:", rollNo);
+        break;
+      }
     }
 
-    if (!rollNoMatch) {
+    if (!rollNo) {
       return {
         success: false,
         error:
-          "Could not find a valid student roll number on this card. Please ensure the roll number is clearly visible.",
+          "Could not find a valid student roll number. Please ensure the roll number (e.g., 2K25/CSE/111) is clearly visible.",
       };
     }
 
-    const rollNo = rollNoMatch[0]
-      .replace(/\s+/g, "")
-      .replace(/-/g, "/")
-      .toUpperCase();
-    const department = rollNoMatch[1].toUpperCase();
-    const batchMatch = rollNo.match(/2K(\d{2})/);
-    const batch = batchMatch ? `2K${batchMatch[1]}` : "";
+    const currentYear = new Date().getFullYear();
+    const batchYearMatch = batch.match(/2K(\d{2})/);
 
-    // 4. Extract Name
+    if (batchYearMatch) {
+      const batchYear = 2000 + parseInt(batchYearMatch[1]);
+      const yearsSinceBatch = currentYear - batchYear;
+
+      if (yearsSinceBatch > 5) {
+        return {
+          success: false,
+          error:
+            "This student appears to have graduated. Only current students (batch 2K" +
+            (currentYear - 5).toString().slice(-2) +
+            " onwards) can register.",
+        };
+      }
+
+      if (batchYear > currentYear) {
+        return {
+          success: false,
+          error: "Invalid batch year. Cannot register future students.",
+        };
+      }
+    }
+
     let name = "";
-    const lines = text
-      .split(/[\n\r]+/)
-      .map((l) => l.trim())
-      .filter((l) => l.length > 0);
 
-    // Strategy 1: Look for "NAME:" label
-    for (const line of lines) {
-      const nameWithLabel = line.match(/NAME\s*:?\s*([A-Z][A-Za-z\s]{2,30})/i);
-      if (nameWithLabel && nameWithLabel[1]) {
-        const candidate = nameWithLabel[1].trim();
-        if (
-          !/UNIVERSITY|SINDH|STUDENT|IDENTITY|CARD|DEPARTMENT|CAMPUS|FATHER/i.test(
-            candidate
-          )
-        ) {
-          name = candidate
-            .split(" ")
-            .map(
-              (word) =>
-                word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
-            )
-            .join(" ");
-          break;
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+
+      // Check if this line contains "Name" (OCR might miss first letter)
+      if (/[Nn]?ame\s*[:;]/i.test(line)) {
+        // Extract name from same line after the label
+        const nameMatch = line.match(/[Nn]?ame\s*[:;]\s*(.+)/i);
+        if (nameMatch && nameMatch[1]) {
+          const candidate = nameMatch[1].trim();
+          // Filter out non-name content (ID numbers, etc.)
+          if (
+            candidate.length >= 3 &&
+            !/^(ID|#|\d)/.test(candidate) &&
+            !isKeywordLine(candidate)
+          ) {
+            name = formatName(candidate);
+            console.log("Found name from label (same line):", name);
+            break;
+          }
+        }
+
+        // If name not on same line, check next line
+        if (!name && i + 1 < lines.length) {
+          const nextLine = lines[i + 1].trim();
+          if (nextLine.length >= 3 && isValidName(nextLine)) {
+            name = formatName(nextLine);
+            console.log("Found name from label (next line):", name);
+            break;
+          }
         }
       }
     }
 
-    // Strategy 2: Look for capitalized words
+    // Strategy 2: Look for ALL CAPS name lines (common on ID cards)
     if (!name || name.length < 3) {
       for (const line of lines) {
-        if (
-          /UNIVERSITY|SINDH|STUDENT|IDENTITY|CARD|CAMPUS|FATHER|ROLL|DEPARTMENT|BACHELOR|MASTER|DECEMBER|DIRECTOR|ADMISSIONS|2K\d{2}|^\d+$|^(BS|MS|BA|MA|BBA|MBA)\b/i.test(
-            line
-          )
-        ) {
-          continue;
-        }
+        if (isKeywordLine(line)) continue;
 
-        const words = line.trim().split(/\s+/);
+        // Clean the line and check if it looks like a name
+        const cleanLine = line.replace(/[^A-Za-z\s]/g, "").trim();
+        const words = cleanLine.split(/\s+/).filter((w) => w.length >= 2);
+
         if (words.length >= 1 && words.length <= 4) {
-          const looksLikeName = words.every(
-            (w) => /^[A-Z][A-Za-z]*$/.test(w) && w.length >= 2 && w.length <= 15
+          const allWordsValid = words.every(
+            (w) =>
+              /^[A-Z][A-Za-z]*$/i.test(w) && w.length >= 2 && w.length <= 15,
           );
-          const lineLengthOk = line.length >= 3 && line.length <= 50;
 
-          if (looksLikeName && lineLengthOk) {
-            name = words
-              .map(
-                (word) =>
-                  word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
-              )
-              .join(" ");
+          if (
+            allWordsValid &&
+            cleanLine.length >= 3 &&
+            cleanLine.length <= 40
+          ) {
+            name = formatName(cleanLine);
+            console.log("Found name from caps line:", name);
             break;
           }
         }
@@ -204,69 +246,56 @@ function parseUOSIDCard(
       return {
         success: false,
         error:
-          "Could not extract student name from the ID card. Please ensure the name is clearly visible and not obscured.",
+          "Could not extract student name from the ID card. Please ensure the name is clearly visible.",
       };
     }
 
-    // 5. Extract Degree Program
     let degreeProgram = "";
+    let departmentFullName = "";
+
     for (const line of lines) {
-      if (/^(BS|MS|BA|MA|BBA|MBA|B\.S|M\.S|BACHELOR|MASTER)\b/i.test(line)) {
-        if (line.length > 4 && line.length < 60 && !/2K\d{2}/i.test(line)) {
-          degreeProgram = line.trim().toUpperCase();
-          break;
+      const upperLine = line.toUpperCase();
+
+      // Match degree patterns
+      if (
+        /^(BS|MS|BA|MA|BBA|MBA|B\.?COM|M\.?COM|BACHELOR|MASTER)/i.test(
+          upperLine,
+        )
+      ) {
+        // Skip if this line contains roll number
+        if (/2K\d{2}/i.test(upperLine)) continue;
+
+        degreeProgram = upperLine.trim();
+        console.log("Found degree program:", degreeProgram);
+
+        // Extract department name from parentheses
+        const deptMatch = degreeProgram.match(/\(([^)]+)\)/);
+        if (deptMatch) {
+          departmentFullName = formatName(deptMatch[1]);
+        } else {
+          // Try to extract department after BS/MS etc.
+          const afterDegree = degreeProgram.match(
+            /^(BS|MS|BA|MA|BBA|MBA)\s+(.+)/i,
+          );
+          if (afterDegree && afterDegree[2]) {
+            // Remove PRE-ENGINEERING, POST etc. suffixes
+            departmentFullName = formatName(
+              afterDegree[2].split(/\s+PRE|\s+POST|\s+FIRST|\s+SECOND/i)[0],
+            );
+          }
         }
+        break;
       }
     }
 
-    if (!degreeProgram) {
-      const degreeMatch = text.match(
-        /\b(B\.?S\.?|M\.?S\.?|BA|MA|BBA|MBA|BACHELOR|MASTER)\s+\(?(COMPUTER SCIENCE|CS|ENGINEERING|COMMERCE|ARTS|SCIENCE|BUSINESS ADMINISTRATION|[\w\s]+)\)?/i
-      );
-      if (degreeMatch && degreeMatch[0].length > 4) {
-        degreeProgram = degreeMatch[0]
-          .trim()
-          .replace(/\s+/g, " ")
-          .toUpperCase();
-      }
+    // If no degree program found, use department abbreviation
+    if (!degreeProgram && department) {
+      degreeProgram = `BS (${department})`;
     }
 
-    // 6. Improve department name
-    let departmentFullName = department;
-    const deptMapping: Record<string, string> = {
-      CSE: "Computer Science",
-      CSM: "Computer Science",
-      CS: "Computer Science",
-      EE: "Electrical Engineering",
-      ME: "Mechanical Engineering",
-      CE: "Civil Engineering",
-      BBA: "Business Administration",
-      MBA: "Business Administration",
-      ECON: "Economics",
-      MATH: "Mathematics",
-      PHYSICS: "Physics",
-      CHEM: "Chemistry",
-      BIO: "Biology",
-    };
-
-    if (degreeProgram) {
-      const deptInDegree = degreeProgram.match(
-        /\((.*?)\)|\b(COMPUTER SCIENCE|ELECTRICAL ENGINEERING|MECHANICAL ENGINEERING|CIVIL ENGINEERING|BUSINESS ADMINISTRATION|ECONOMICS|MATHEMATICS|PHYSICS|CHEMISTRY|BIOLOGY|ENGINEERING)\b/i
-      );
-      if (deptInDegree) {
-        const extracted = deptInDegree[1] || deptInDegree[2];
-        if (extracted && extracted.length > 2) {
-          departmentFullName = extracted.trim();
-        }
-      }
-    }
-
-    if (deptMapping[department]) {
-      departmentFullName = deptMapping[department];
-    }
-
-    if (!degreeProgram) {
-      degreeProgram = `BS (${departmentFullName})`;
+    // If department full name not extracted, use the abbreviation
+    if (!departmentFullName) {
+      departmentFullName = department;
     }
 
     console.log("=== Parsing Complete ===");
@@ -300,9 +329,63 @@ function parseUOSIDCard(
   }
 }
 
-/**
- * Client-side validation of extracted data
- */
+function isKeywordLine(line: string): boolean {
+  const keywords = [
+    "UNIVERSITY",
+    "SINDH",
+    "JAMSHORO",
+    "PAKISTAN",
+    "STUDENT",
+    "IDENTITY",
+    "CARD",
+    "CAMPUS",
+    "ROLL",
+    "DEPARTMENT",
+    "BACHELOR",
+    "MASTER",
+    "DECEMBER",
+    "JANUARY",
+    "DIRECTOR",
+    "ADMISSIONS",
+    "VALID",
+    "UPTO",
+    "2K",
+    "PRE-ENGINEERING",
+    "FIRST YEAR",
+    "SECOND YEAR",
+    "ACADEMIC",
+    "ALLAMA",
+    "KAZI",
+  ];
+
+  const upperLine = line.toUpperCase();
+  return (
+    keywords.some((kw) => upperLine.includes(kw)) ||
+    /^\d+$/.test(line.trim()) ||
+    /^ID\s*[#:]?\s*\d+/i.test(line)
+  );
+}
+
+function isValidName(str: string): boolean {
+  const clean = str.replace(/[^A-Za-z\s]/g, "").trim();
+  if (clean.length < 3 || clean.length > 40) return false;
+  if (isKeywordLine(str)) return false;
+
+  const words = clean.split(/\s+/);
+  return (
+    words.length >= 1 && words.length <= 4 && words.every((w) => w.length >= 2)
+  );
+}
+
+function formatName(str: string): string {
+  return str
+    .trim()
+    .split(/\s+/)
+    .filter((w) => w.length > 0)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(" ");
+}
+
 export function validateExtractedData(data: OCRResult["extractedData"]): {
   valid: boolean;
   errors: string[];
@@ -313,13 +396,11 @@ export function validateExtractedData(data: OCRResult["extractedData"]): {
     return { valid: false, errors: ["No data extracted"] };
   }
 
-  // 1. Validate roll number format
   const rollNoPattern = /^2K\d{2}\/[A-Z]{2,4}\/\d+$/;
   if (!rollNoPattern.test(data.rollNo)) {
     errors.push("Invalid roll number format. Expected format: 2K25/CSE/87");
   }
 
-  // 2. Validate batch year (improved logic - allow up to 6 years for extensions)
   const currentYear = new Date().getFullYear();
   const batchYearMatch = data.batch.match(/2K(\d{2})/);
 
@@ -327,10 +408,9 @@ export function validateExtractedData(data: OCRResult["extractedData"]): {
     const batchYear = 2000 + parseInt(batchYearMatch[1]);
     const yearsSinceBatch = currentYear - batchYear;
 
-    // Allow up to 6 years (for students who took breaks or extensions)
-    if (yearsSinceBatch > 6) {
+    if (yearsSinceBatch > 5) {
       errors.push(
-        "This student has likely graduated. Only current students can register."
+        "This student has likely graduated. Only current students can register.",
       );
     }
 
@@ -339,14 +419,8 @@ export function validateExtractedData(data: OCRResult["extractedData"]): {
     }
   }
 
-  // 3. Validate name
   if (!data.name || data.name.length < 3) {
     errors.push("Student name is required");
-  }
-
-  // 4. Validate university header
-  if (!data.universityHeader.includes("UNIVERSITY OF SINDH")) {
-    errors.push("This does not appear to be a University of Sindh ID card");
   }
 
   return {
