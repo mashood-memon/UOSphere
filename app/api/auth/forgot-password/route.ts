@@ -57,8 +57,29 @@ export async function POST(request: Request) {
       },
     });
 
-    // Generate reset link
-    const resetLink = `${process.env.NEXTAUTH_URL || "http://localhost:3000"}/reset-password?token=${resetToken}`;
+    // Generate reset link - supports both NEXTAUTH_URL and AUTH_URL
+    const baseUrl =
+      process.env.NEXTAUTH_URL ||
+      process.env.AUTH_URL ||
+      (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null) ||
+      "http://localhost:3000";
+
+    // In production, throw error if neither URL is set
+    if (
+      process.env.NODE_ENV === "production" &&
+      !process.env.NEXTAUTH_URL &&
+      !process.env.AUTH_URL
+    ) {
+      console.error(
+        "CRITICAL: NEXTAUTH_URL or AUTH_URL not set in production environment!",
+      );
+      return NextResponse.json(
+        { error: "Server configuration error. Please contact support." },
+        { status: 500 },
+      );
+    }
+
+    const resetLink = `${baseUrl}/reset-password?token=${resetToken}`;
 
     // Send email with reset link
     try {
