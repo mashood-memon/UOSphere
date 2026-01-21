@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { ArrowLeft, Mail } from "lucide-react";
+import { ArrowLeft, Mail, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -140,9 +140,12 @@ export default function ForgotPasswordPage() {
                 {/* Development Only - Show Reset Link if email fails */}
                 {resetLink && (
                   <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                    <p className="text-xs font-semibold text-yellow-800 mb-2">
-                      ⚠️ Email Service Not Configured - Reset Link:
-                    </p>
+                    <div className="flex items-center gap-2 mb-2">
+                      <AlertTriangle className="w-4 h-4 text-yellow-800" />
+                      <p className="text-xs font-semibold text-yellow-800">
+                        Email Service Not Configured - Reset Link:
+                      </p>
+                    </div>
                     <Link
                       href={resetLink}
                       className="text-sm text-blue-600 hover:underline break-all"

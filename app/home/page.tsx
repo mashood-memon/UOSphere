@@ -1,5 +1,6 @@
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
+import { PartyPopper, BookOpen, GraduationCap, IdCard } from "lucide-react";
 
 export default async function HomePage() {
   const session = await auth();
@@ -40,13 +41,25 @@ export default async function HomePage() {
         <div className="max-w-4xl mx-auto">
           <h2 className="text-3xl font-bold mb-6">Welcome to UOSphere!</h2>
           <div className="bg-white rounded-lg shadow p-6">
-            <p className="text-lg mb-4">
-              🎉 You're now logged in as <strong>{session.user?.name}</strong>
-            </p>
+            <div className="flex items-center gap-2 mb-4 text-lg">
+              <PartyPopper className="w-5 h-5 text-blue-600" />
+              <p>
+                You're now logged in as <strong>{session.user?.name}</strong>
+              </p>
+            </div>
             <div className="space-y-2 text-gray-700">
-              <p>📚 Department: {session.user?.department}</p>
-              <p>🎓 Batch: {session.user?.batch}</p>
-              <p>🆔 Roll No: {session.user?.rollNo}</p>
+              <div className="flex items-center gap-2">
+                <BookOpen className="w-5 h-5 text-blue-600" />
+                <p>Department: {session.user?.department}</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <GraduationCap className="w-5 h-5 text-blue-600" />
+                <p>Batch: {session.user?.batch}</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <IdCard className="w-5 h-5 text-blue-600" />
+                <p>Roll No: {session.user?.rollNo}</p>
+              </div>
             </div>
             <div className="mt-6 bg-blue-50 rounded-lg p-4">
               <p className="text-sm text-blue-700">

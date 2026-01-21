@@ -1,7 +1,5 @@
 "use client";
 
-import Tesseract from "tesseract.js";
-
 export interface OCRResult {
   success: boolean;
   confidence: number;
@@ -22,15 +20,41 @@ export async function extractTextFromIDCard(
   onProgress?: (progress: number) => void,
 ): Promise<OCRResult> {
   try {
-    const {
-      data: { text, confidence },
-    } = await Tesseract.recognize(imageFile, "eng", {
-      logger: (info) => {
-        if (info.status === "recognizing text" && onProgress) {
-          onProgress(Math.round(info.progress * 100));
-        }
+    // Update progress to show we're starting
+    if (onProgress) {
+      onProgress(10);
+    }
+
+    // Convert file to base64 for sending to API
+    const base64Image = await fileToBase64(imageFile);
+
+    if (onProgress) {
+      onProgress(30);
+    }
+
+    // Call our server-side API endpoint that uses Azure Document Intelligence
+    const response = await fetch("/api/ocr/analyze", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
       },
+      body: JSON.stringify({ image: base64Image }),
     });
+
+    if (onProgress) {
+      onProgress(70);
+    }
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || "Failed to analyze document");
+    }
+
+    const { text, confidence } = await response.json();
+
+    if (onProgress) {
+      onProgress(90);
+    }
 
     console.log("=== OCR Raw Output ===");
     console.log("Extracted Text:", text);
@@ -39,6 +63,9 @@ export async function extractTextFromIDCard(
     const parsedData = parseUOSIDCard(text, confidence);
 
     if (!parsedData.success) {
+      if (onProgress) {
+        onProgress(100);
+      }
       return {
         success: false,
         confidence,
@@ -46,6 +73,10 @@ export async function extractTextFromIDCard(
           parsedData.error ||
           "Could not extract required information from ID card.",
       };
+    }
+
+    if (onProgress) {
+      onProgress(100);
     }
 
     return {
@@ -58,9 +89,27 @@ export async function extractTextFromIDCard(
     return {
       success: false,
       confidence: 0,
-      error: "Failed to process image. Please try again.",
+      error:
+        error instanceof Error
+          ? error.message
+          : "Failed to process image. Please try again.",
     };
   }
+}
+
+// Helper function to convert File to base64
+async function fileToBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = () => {
+      const result = reader.result as string;
+      // Remove the data URL prefix (e.g., "data:image/jpeg;base64,")
+      const base64 = result.split(",")[1];
+      resolve(base64);
+    };
+    reader.onerror = (error) => reject(error);
+  });
 }
 
 function parseUOSIDCard(

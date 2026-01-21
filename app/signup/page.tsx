@@ -24,6 +24,13 @@ import {
   Lock,
   User,
   Upload,
+  BookOpen,
+  Code,
+  Target,
+  GraduationCap,
+  Trophy,
+  PartyPopper,
+  MessageCircle,
 } from "lucide-react";
 import { extractTextFromIDCard } from "@/lib/ocr-client";
 
@@ -97,14 +104,18 @@ const lookingForOptions = [
   {
     id: "study_partner",
     label: "Study partner for specific courses",
-    icon: "📚",
+    icon: BookOpen,
   },
-  { id: "project_collab", label: "Project collaboration", icon: "💻" },
-  { id: "hobby_buddy", label: "Hobby buddy", icon: "🎯" },
-  { id: "mentorship", label: "Mentorship (give or receive)", icon: "🎓" },
-  { id: "competition_team", label: "Competition team members", icon: "🏆" },
-  { id: "event_partner", label: "Event/club partners", icon: "🎪" },
-  { id: "friends", label: "Just looking to make friends", icon: "💬" },
+  { id: "project_collab", label: "Project collaboration", icon: Code },
+  { id: "hobby_buddy", label: "Hobby buddy", icon: Target },
+  {
+    id: "mentorship",
+    label: "Mentorship (give or receive)",
+    icon: GraduationCap,
+  },
+  { id: "competition_team", label: "Competition team members", icon: Trophy },
+  { id: "event_partner", label: "Event/club partners", icon: PartyPopper },
+  { id: "friends", label: "Just looking to make friends", icon: MessageCircle },
 ];
 
 export default function SignupPage() {
@@ -241,8 +252,8 @@ export default function SignupPage() {
                       step.number < currentStep
                         ? "bg-green-500 text-white"
                         : step.number === currentStep
-                        ? "bg-blue-600 text-white"
-                        : "bg-gray-200 text-gray-500"
+                          ? "bg-blue-600 text-white"
+                          : "bg-gray-200 text-gray-500"
                     }`}
                   >
                     {step.number < currentStep ? (
@@ -486,10 +497,10 @@ function StepOneUploadID({ formData, setFormData }: StepProps) {
     setOcrProgress(0);
 
     try {
-      // Step 1: Extract data using CLIENT-SIDE OCR (Tesseract.js)
+      // Step 1: Extract data using Azure Document Intelligence OCR
       toast({
         title: "Processing...",
-        description: "Extracting data from ID card using OCR",
+        description: "Extracting info from ID card. Please wait...",
       });
 
       const ocrResult = await extractTextFromIDCard(file, (progress) => {
@@ -516,7 +527,7 @@ function StepOneUploadID({ formData, setFormData }: StepProps) {
       formDataToSend.append("idCard", file);
       formDataToSend.append(
         "extractedData",
-        JSON.stringify(ocrResult.extractedData)
+        JSON.stringify(ocrResult.extractedData),
       );
 
       const response = await fetch("/api/auth/upload-id", {
@@ -541,7 +552,7 @@ function StepOneUploadID({ formData, setFormData }: StepProps) {
         toast({
           title: "Success!",
           description: `ID card data extracted successfully (${Math.round(
-            ocrResult.confidence
+            ocrResult.confidence,
           )}% confidence)`,
         });
       } else {
@@ -1028,7 +1039,7 @@ function StepFourSelectInterests({ formData, setFormData }: StepProps) {
       setFormData({
         ...formData,
         selectedInterests: currentInterests.filter(
-          (i: string) => i !== interest
+          (i: string) => i !== interest,
         ),
       });
     } else {
@@ -1057,8 +1068,8 @@ function StepFourSelectInterests({ formData, setFormData }: StepProps) {
               selectedCount < 3
                 ? "text-red-500"
                 : selectedCount >= 10
-                ? "text-orange-500"
-                : "text-green-600"
+                  ? "text-orange-500"
+                  : "text-green-600"
             }`}
           >
             {selectedCount}/10 selected
@@ -1084,15 +1095,15 @@ function StepFourSelectInterests({ formData, setFormData }: StepProps) {
                     key={tag}
                     onClick={() => !isDisabled && toggleInterest(tag)}
                     disabled={isDisabled}
-                    className={`px-3 py-1.5 rounded-full text-sm font-medium transition-all ${
+                    className={`px-3 py-1.5 rounded-full text-sm font-medium transition-all flex items-center gap-1 ${
                       isSelected
                         ? "bg-blue-600 text-white hover:bg-blue-700"
                         : isDisabled
-                        ? "bg-gray-100 text-gray-400 cursor-not-allowed"
-                        : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                          ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                          : "bg-gray-100 text-gray-700 hover:bg-gray-200"
                     }`}
                   >
-                    {tag} {isSelected && "✓"}
+                    {tag} {isSelected && <Check className="w-3 h-3" />}
                   </button>
                 );
               })}
@@ -1103,11 +1114,14 @@ function StepFourSelectInterests({ formData, setFormData }: StepProps) {
 
       {selectedCount >= 3 && (
         <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-          <p className="text-sm text-green-700">
-            ✓ Great! You've selected {selectedCount} interest
-            {selectedCount > 1 ? "s" : ""}. This will help us find your perfect
-            matches!
-          </p>
+          <div className="flex items-center gap-2">
+            <Check className="w-4 h-4 text-green-700" />
+            <p className="text-sm text-green-700">
+              Great! You've selected {selectedCount} interest
+              {selectedCount > 1 ? "s" : ""}. This will help us find your
+              perfect matches!
+            </p>
+          </div>
         </div>
       )}
     </div>
@@ -1171,7 +1185,7 @@ function StepFiveLookingFor({ formData, setFormData }: StepProps) {
                 >
                   {isSelected && <Check className="w-3 h-3 text-white" />}
                 </div>
-                <span className="text-2xl">{option.icon}</span>
+                <option.icon className="w-5 h-5 text-blue-600" />
                 <span
                   className={`font-medium ${
                     isSelected ? "text-blue-700" : "text-gray-700"
@@ -1195,9 +1209,10 @@ function StepFiveLookingFor({ formData, setFormData }: StepProps) {
       )}
 
       <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-        <p className="text-sm text-green-700 font-semibold mb-2">
-          🎉 Almost Done!
-        </p>
+        <div className="flex items-center gap-2 mb-2">
+          <PartyPopper className="w-4 h-4 text-green-700" />
+          <p className="text-sm text-green-700 font-semibold">Almost Done!</p>
+        </div>
         <p className="text-sm text-green-600">
           Click "Create Account" to join UOSphere and start connecting with your
           peers!
