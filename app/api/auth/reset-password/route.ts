@@ -21,13 +21,30 @@ export async function POST(request: Request) {
       );
     }
 
-    // Find the password reset record
+    console.log(
+      "[Reset Password] Looking up token:",
+      token.substring(0, 8) + "...",
+    );
+
+    // Find the password reset record FIRST before any cleanup
     const resetRecord = await prisma.passwordReset.findUnique({
       where: { token },
       include: { user: true },
     });
 
+    console.log("[Reset Password] Token found:", !!resetRecord);
+    if (resetRecord) {
+      console.log("[Reset Password] Token expiry:", resetRecord.expiresAt);
+      console.log("[Reset Password] Current time:", new Date());
+      console.log("[Reset Password] Token used:", resetRecord.used);
+      console.log(
+        "[Reset Password] Time until expiry (minutes):",
+        (resetRecord.expiresAt.getTime() - Date.now()) / 1000 / 60,
+      );
+    }
+
     if (!resetRecord) {
+      console.error("[Reset Password] Token not found in database");
       return NextResponse.json(
         { error: "Invalid or expired reset token" },
         { status: 400 },
@@ -36,6 +53,7 @@ export async function POST(request: Request) {
 
     // Check if token has been used
     if (resetRecord.used) {
+      console.log("[Reset Password] Token already used");
       return NextResponse.json(
         { error: "This reset link has already been used" },
         { status: 400 },
@@ -44,6 +62,7 @@ export async function POST(request: Request) {
 
     // Check if token has expired
     if (new Date() > resetRecord.expiresAt) {
+      console.log("[Reset Password] Token expired");
       return NextResponse.json(
         { error: "This reset link has expired. Please request a new one." },
         { status: 400 },
@@ -64,6 +83,22 @@ export async function POST(request: Request) {
         data: { used: true },
       }),
     ]);
+
+    // Clean up expired tokens AFTER successful reset (run async, don't block)
+    prisma.passwordReset
+      .deleteMany({
+        where: {
+          expiresAt: {
+            lt: new Date(),
+          },
+        },
+      })
+      .catch((err) => console.error("Failed to cleanup expired tokens:", err));
+
+    console.log(
+      "[Reset Password] Password reset successful for user:",
+      resetRecord.userId,
+    );
 
     return NextResponse.json({
       message: "Password reset successfully. You can now log in.",

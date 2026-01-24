@@ -223,12 +223,12 @@ export default function SignupPage() {
       <nav className="border-b bg-white">
         <div className="container mx-auto px-4 h-16 flex items-center justify-between">
           <Link href="/">
-            <h1 className="text-2xl font-bold text-blue-600 cursor-pointer">
+            <h1 className="text-xl md:text-2xl font-bold text-blue-600 cursor-pointer">
               UOSphere
             </h1>
           </Link>
-          <div className="text-sm text-gray-600">
-            Already have an account?{" "}
+          <div className="text-xs md:text-sm text-gray-600">
+            <span className="hidden sm:inline">Already have an account? </span>
             <Link
               href="/login"
               className="text-blue-600 font-semibold hover:underline"
@@ -240,15 +240,15 @@ export default function SignupPage() {
       </nav>
 
       {/* Progress Steps */}
-      <div className="container mx-auto px-4 py-8">
+      <div className="container mx-auto px-4 py-4 md:py-8">
         <div className="max-w-4xl mx-auto">
-          <div className="flex items-center justify-between mb-8">
+          <div className="flex items-center justify-between mb-6 md:mb-8">
             {steps.map((step, index) => (
               <div key={step.number} className="flex items-center">
                 {/* Step Circle */}
                 <div className="flex flex-col items-center">
                   <div
-                    className={`w-10 h-10 rounded-full flex items-center justify-center font-semibold transition-all ${
+                    className={`w-8 h-8 md:w-10 md:h-10 rounded-full flex items-center justify-center text-sm md:text-base font-semibold transition-all ${
                       step.number < currentStep
                         ? "bg-green-500 text-white"
                         : step.number === currentStep
@@ -257,7 +257,7 @@ export default function SignupPage() {
                     }`}
                   >
                     {step.number < currentStep ? (
-                      <Check className="w-5 h-5" />
+                      <Check className="w-4 h-4 md:w-5 md:h-5" />
                     ) : (
                       step.number
                     )}
@@ -279,7 +279,7 @@ export default function SignupPage() {
                 {/* Connector Line */}
                 {index < steps.length - 1 && (
                   <div
-                    className={`h-1 w-12 md:w-20 mx-2 transition-all ${
+                    className={`h-0.5 md:h-1 w-4 sm:w-8 md:w-12 lg:w-20 mx-1 md:mx-2 transition-all ${
                       step.number < currentStep ? "bg-green-500" : "bg-gray-200"
                     }`}
                   />
@@ -289,14 +289,16 @@ export default function SignupPage() {
           </div>
 
           {/* Step Content */}
-          <Card className="max-w-2xl mx-auto">
-            <CardHeader>
-              <CardTitle>
+          <Card className="max-w-2xl mx-auto shadow-lg">
+            <CardHeader className="pb-4">
+              <CardTitle className="text-lg md:text-xl">
                 Step {currentStep} of {totalSteps}
               </CardTitle>
-              <CardDescription>{steps[currentStep - 1].title}</CardDescription>
+              <CardDescription className="text-sm">
+                {steps[currentStep - 1].title}
+              </CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="px-4 md:px-6">
               {currentStep === 1 && (
                 <StepOneUploadID
                   formData={formData}
@@ -329,15 +331,17 @@ export default function SignupPage() {
               )}
 
               {/* Navigation Buttons */}
-              <div className="flex justify-between mt-6">
+              <div className="flex flex-col sm:flex-row justify-between gap-3 mt-6">
                 <Button
                   variant="outline"
                   onClick={() => setCurrentStep(Math.max(1, currentStep - 1))}
                   disabled={currentStep === 1}
+                  className="w-full sm:w-auto"
                 >
                   Back
                 </Button>
                 <Button
+                  className="w-full sm:w-auto"
                   onClick={() => {
                     // Validate current step before proceeding
                     if (currentStep === 1) {
@@ -594,10 +598,10 @@ function StepOneUploadID({ formData, setFormData }: StepProps) {
   return (
     <div className="space-y-6">
       <div className="text-center">
-        <h3 className="text-lg font-semibold mb-2">
+        <h3 className="text-base md:text-lg font-semibold mb-2">
           Upload Your UOS Student ID Card
         </h3>
-        <p className="text-sm text-gray-600">
+        <p className="text-xs md:text-sm text-gray-600">
           Take a clear photo of the front of your student ID card
         </p>
       </div>
@@ -643,9 +647,11 @@ function StepOneUploadID({ formData, setFormData }: StepProps) {
             <img
               src={URL.createObjectURL(formData.idCardImage)}
               alt="ID Card Preview"
-              className="max-h-64 mx-auto rounded-lg"
+              className="max-h-48 md:max-h-64 mx-auto rounded-lg w-auto max-w-full"
             />
-            <p className="text-sm text-gray-600">{formData.idCardImage.name}</p>
+            <p className="text-xs md:text-sm text-gray-600 break-all">
+              {formData.idCardImage.name}
+            </p>
             <Button
               variant="outline"
               onClick={() => setFormData({ ...formData, idCardImage: null })}
@@ -731,10 +737,10 @@ function StepTwoVerifyData({ formData, setFormData }: StepProps) {
   return (
     <div className="space-y-6">
       <div className="text-center">
-        <h3 className="text-lg font-semibold mb-2">
+        <h3 className="text-base md:text-lg font-semibold mb-2">
           Verify Extracted Information
         </h3>
-        <p className="text-sm text-gray-600">
+        <p className="text-xs md:text-sm text-gray-600">
           Please review and confirm the information extracted from your ID card
         </p>
       </div>
@@ -752,7 +758,7 @@ function StepTwoVerifyData({ formData, setFormData }: StepProps) {
 
       {/* Form Fields */}
       <div className="space-y-4">
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-2">
             <Label htmlFor="name">
               Full Name <span className="text-red-500">*</span>
@@ -784,7 +790,7 @@ function StepTwoVerifyData({ formData, setFormData }: StepProps) {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-2">
             <Label htmlFor="department">
               Department <span className="text-red-500">*</span>
@@ -849,8 +855,10 @@ function StepThreeAccountSetup({ formData, setFormData }: StepProps) {
   return (
     <div className="space-y-6">
       <div className="text-center">
-        <h3 className="text-lg font-semibold mb-2">Create Your Account</h3>
-        <p className="text-sm text-gray-600">
+        <h3 className="text-base md:text-lg font-semibold mb-2">
+          Create Your Account
+        </h3>
+        <p className="text-xs md:text-sm text-gray-600">
           Set up your login credentials and profile information
         </p>
       </div>
@@ -1057,8 +1065,10 @@ function StepFourSelectInterests({ formData, setFormData }: StepProps) {
   return (
     <div className="space-y-6">
       <div className="text-center">
-        <h3 className="text-lg font-semibold mb-2">Select Your Interests</h3>
-        <p className="text-sm text-gray-600">
+        <h3 className="text-base md:text-lg font-semibold mb-2">
+          Select Your Interests
+        </h3>
+        <p className="text-xs md:text-sm text-gray-600">
           Choose at least 3 and up to 10 interests to help us match you with
           like-minded peers
         </p>
@@ -1095,7 +1105,7 @@ function StepFourSelectInterests({ formData, setFormData }: StepProps) {
                     key={tag}
                     onClick={() => !isDisabled && toggleInterest(tag)}
                     disabled={isDisabled}
-                    className={`px-3 py-1.5 rounded-full text-sm font-medium transition-all flex items-center gap-1 ${
+                    className={`px-3 py-2 md:py-1.5 rounded-full text-xs md:text-sm font-medium transition-all flex items-center gap-1 touch-manipulation ${
                       isSelected
                         ? "bg-blue-600 text-white hover:bg-blue-700"
                         : isDisabled
@@ -1148,10 +1158,10 @@ function StepFiveLookingFor({ formData, setFormData }: StepProps) {
   return (
     <div className="space-y-6">
       <div className="text-center">
-        <h3 className="text-lg font-semibold mb-2">
+        <h3 className="text-base md:text-lg font-semibold mb-2">
           What Are You Looking For?
         </h3>
-        <p className="text-sm text-gray-600">
+        <p className="text-xs md:text-sm text-gray-600">
           Select at least one option to help us connect you with the right
           people
         </p>
@@ -1169,7 +1179,7 @@ function StepFiveLookingFor({ formData, setFormData }: StepProps) {
             <button
               key={option.id}
               onClick={() => toggleLookingFor(option.id)}
-              className={`w-full p-4 rounded-lg border-2 transition-all text-left ${
+              className={`w-full p-3 md:p-4 rounded-lg border-2 transition-all text-left touch-manipulation ${
                 isSelected
                   ? "border-blue-600 bg-blue-50"
                   : "border-gray-200 hover:border-gray-300 hover:bg-gray-50"

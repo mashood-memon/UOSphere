@@ -40,22 +40,36 @@ export async function POST(request: Request) {
     // Token expires in 1 hour
     const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
 
-    // Delete any existing unused tokens for this user
+    console.log("[Forgot Password] Creating token for user:", user.id);
+    console.log(
+      "[Forgot Password] Token (first 8 chars):",
+      resetToken.substring(0, 8),
+    );
+    console.log("[Forgot Password] Expires at:", expiresAt);
+
+    // Delete any existing unused tokens for this user AND clean up expired tokens globally
     await prisma.passwordReset.deleteMany({
       where: {
-        userId: user.id,
-        used: false,
+        OR: [
+          { userId: user.id, used: false },
+          { expiresAt: { lt: new Date() } }, // Clean up all expired tokens
+        ],
       },
     });
 
     // Create new password reset token
-    await prisma.passwordReset.create({
+    const createdToken = await prisma.passwordReset.create({
       data: {
         userId: user.id,
         token: resetToken,
         expiresAt,
       },
     });
+
+    console.log(
+      "[Forgot Password] Token created successfully:",
+      createdToken.id,
+    );
 
     // Generate reset link - supports both NEXTAUTH_URL and AUTH_URL
     const baseUrl =

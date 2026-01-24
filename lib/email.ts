@@ -15,6 +15,9 @@ export async function sendPasswordResetEmail(
   resetLink: string,
 ) {
   try {
+    const startTime = Date.now();
+    console.log(`[Email] Starting password reset email to: ${to}`);
+
     const { data, error } = await resend.emails.send({
       from: "UOSphere <onboarding@resend.dev>", // Default Resend domain - works immediately
       to: [to],
@@ -75,7 +78,7 @@ export async function sendPasswordResetEmail(
                   <td>
                     <p style="margin: 0 0 10px; color: #92400e; font-weight: 600; font-size: 14px;">⚠️ Security Notice</p>
                     <p style="margin: 0; color: #78350f; font-size: 13px; line-height: 1.5;">
-                      This link will expire in <strong>1 hour</strong>. If you didn't request this password reset, please ignore this email or contact support if you're concerned about your account security.
+                      This link will expire in <strong>1 hour</strong>.<strong>Do not share this to anyone</strong> If you didn't request this password reset, please ignore this email or contact support if you're concerned about your account security.
                     </p>
                   </td>
                 </tr>
@@ -93,7 +96,6 @@ export async function sendPasswordResetEmail(
             <td style="padding: 30px; background-color: #f9fafb; border-top: 1px solid #e5e7eb; text-align: center;">
               <p style="margin: 0; color: #9ca3af; font-size: 12px; line-height: 1.5;">
                 This is an automated message, please do not reply to this email.<br>
-                © 2026 UOSphere - University of Sargodha
               </p>
             </td>
           </tr>
@@ -120,15 +122,20 @@ The UOSphere Team
 
 ---
 This is an automated message, please do not reply to this email.
-© 2026 UOSphere - University of Sargodha`,
+© 2026 UOSphere - University of Sindh`,
     });
 
     if (error) {
-      console.error("Resend error:", error);
+      const elapsed = Date.now() - startTime;
+      console.error(`[Email] Error after ${elapsed}ms:`, error);
       throw error;
     }
 
-    console.log("Password reset email sent successfully:", data);
+    const elapsed = Date.now() - startTime;
+    console.log(
+      `[Email] Password reset email sent successfully in ${elapsed}ms:`,
+      data,
+    );
     return data;
   } catch (error) {
     console.error("Failed to send password reset email:", error);
@@ -174,7 +181,7 @@ export async function sendWelcomeEmail(to: string, userName: string) {
               </p>
               
               <p style="margin: 0 0 20px; color: #3f3f46; font-size: 16px; line-height: 1.6;">
-                Welcome to <strong style="color: #667eea;">UOSphere</strong> - the social platform for University of Sargodha students!
+                Welcome to <strong style="color: #667eea;">UOSphere</strong> - the social platform for University of Sindh students!
               </p>
               
               <p style="margin: 0 0 30px; color: #3f3f46; font-size: 16px; line-height: 1.6;">
@@ -192,7 +199,7 @@ export async function sendWelcomeEmail(to: string, userName: string) {
           <tr>
             <td style="padding: 30px; background-color: #f9fafb; border-top: 1px solid #e5e7eb; text-align: center;">
               <p style="margin: 0; color: #9ca3af; font-size: 12px; line-height: 1.5;">
-                © 2026 UOSphere - University of Sargodha
+                © 2026 UOSphere - University of Sindh
               </p>
             </td>
           </tr>
@@ -205,7 +212,7 @@ export async function sendWelcomeEmail(to: string, userName: string) {
       `,
       text: `Hi ${userName},
 
-Welcome to UOSphere - the social platform for University of Sargodha students!
+Welcome to UOSphere - the social platform for University of Sindh students!
 
 Your account has been successfully created. You can now connect with fellow students, share experiences, and be part of our vibrant community.
 
@@ -213,7 +220,7 @@ Best regards,
 The UOSphere Team
 
 ---
-© 2026 UOSphere - University of Sargodha`,
+© 2026 UOSphere - University of Sindh`,
     });
 
     if (error) {
