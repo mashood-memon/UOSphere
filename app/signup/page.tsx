@@ -127,7 +127,6 @@ export default function SignupPage() {
   const [formData, setFormData] = useState({
     // Step 1
     idCardImage: null as File | null,
-    idCardImageUrl: "", // Cloudinary URL from OCR upload
     // Step 2
     name: "",
     rollNo: "",
@@ -179,7 +178,6 @@ export default function SignupPage() {
         campus: formData.campus,
         bio: formData.bio,
         profilePicUrl: null, // TODO: Add profile pic upload in settings
-        idCardImageUrl: formData.idCardImageUrl, // From Cloudinary
         interests: formData.selectedInterests,
         lookingFor: formData.lookingFor,
       };
@@ -521,10 +519,10 @@ function StepOneUploadID({ formData, setFormData }: StepProps) {
         return;
       }
 
-      // Step 2: Upload image and validate with server
+      // Step 2: validate with server
       toast({
-        title: "Uploading...",
-        description: "Validating and uploading ID card",
+        title: "Validating",
+        description: "Validating ID card data. Please wait...",
       });
 
       const formDataToSend = new FormData();
@@ -546,7 +544,6 @@ function StepOneUploadID({ formData, setFormData }: StepProps) {
         setFormData({
           ...formData,
           idCardImage: file,
-          idCardImageUrl: result.data.imageUrl, // Save Cloudinary URL
           name: result.data.name,
           rollNo: result.data.rollNo,
           department: result.data.department,
@@ -555,9 +552,7 @@ function StepOneUploadID({ formData, setFormData }: StepProps) {
         });
         toast({
           title: "Success!",
-          description: `ID card data extracted successfully (${Math.round(
-            ocrResult.confidence,
-          )}% confidence)`,
+          description: `ID card data extracted successfully.`,
         });
       } else {
         toast({

@@ -10,23 +10,22 @@ datasource db {
 }
 
 model User {
-    id             String   @id @default(uuid())
-    rollNo         String   @unique
-    name           String
-    email          String?  @unique
-    phone          String?
-    passwordHash   String
-    department     String
-    batch          String
-    batchYear      Int
-    degreeProgram  String?
-    campus         String?
-    bio            String?
-    profilePicUrl  String?
-    idCardImageUrl String
-    isVerified     Boolean  @default(true)
-    createdAt      DateTime @default(now())
-    updatedAt      DateTime @updatedAt
+    id            String   @id @default(uuid())
+    rollNo        String   @unique
+    name          String
+    email         String?  @unique
+    phone         String?
+    passwordHash  String
+    department    String
+    batch         String
+    batchYear     Int
+    degreeProgram String?
+    campus        String?
+    bio           String?
+    profilePicUrl String?
+    isVerified    Boolean  @default(true)
+    createdAt     DateTime @default(now())
+    updatedAt     DateTime @updatedAt
 
     interests           Interest[]
     lookingFor          LookingFor[]

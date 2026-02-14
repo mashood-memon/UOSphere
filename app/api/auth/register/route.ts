@@ -17,7 +17,6 @@ export async function POST(request: Request) {
       campus,
       bio,
       profilePicUrl,
-      idCardImageUrl,
       interests,
       lookingFor,
     } = body;
@@ -26,7 +25,7 @@ export async function POST(request: Request) {
     if (!name || !rollNo || !email || !password) {
       return NextResponse.json(
         { error: "Missing required fields" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -40,7 +39,7 @@ export async function POST(request: Request) {
     if (existingUser) {
       return NextResponse.json(
         { error: "User with this email or roll number already exists" },
-        { status: 409 }
+        { status: 409 },
       );
     }
 
@@ -51,7 +50,7 @@ export async function POST(request: Request) {
     if (!batchYear) {
       return NextResponse.json(
         { error: "Invalid roll number format" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -75,7 +74,6 @@ export async function POST(request: Request) {
           campus: campus || null,
           bio: bio || null,
           profilePicUrl: profilePicUrl || null,
-          idCardImageUrl: idCardImageUrl || "",
           isVerified: true, // Auto-verified via OCR
         },
       });
@@ -116,7 +114,7 @@ export async function POST(request: Request) {
         message: "User registered successfully",
         user: userWithoutPassword,
       },
-      { status: 201 }
+      { status: 201 },
     );
   } catch (error) {
     console.error("Registration error:", error);
@@ -127,7 +125,7 @@ export async function POST(request: Request) {
     }
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

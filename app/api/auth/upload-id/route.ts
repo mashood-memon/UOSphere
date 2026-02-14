@@ -1,27 +1,21 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { uploadToCloudinary } from "@/lib/cloudinary";
 
 /**
- * Upload ID card and validate pre-extracted data
- * OCR is now done on CLIENT SIDE to avoid serverless limitations
+ * Validate pre-extracted ID card data
+ * OCR is done on CLIENT SIDE - no file storage needed
  */
 export async function POST(request: Request) {
   try {
     const formData = await request.formData();
-    const file = formData.get("idCard") as File;
 
     // Get pre-extracted data from client
     const extractedDataStr = formData.get("extractedData") as string;
 
-    if (!file) {
-      return NextResponse.json({ error: "No file uploaded" }, { status: 400 });
-    }
-
     if (!extractedDataStr) {
       return NextResponse.json(
         { error: "No extracted data provided" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -33,24 +27,7 @@ export async function POST(request: Request) {
       console.error("Failed to parse extracted data:", err);
       return NextResponse.json(
         { error: "Invalid extracted data format" },
-        { status: 400 }
-      );
-    }
-
-    // Validate file type
-    if (!file.type.startsWith("image/")) {
-      return NextResponse.json(
-        { error: "File must be an image" },
-        { status: 400 }
-      );
-    }
-
-    // Validate file size (4MB max for Vercel)
-    const maxSize = 4 * 1024 * 1024; // 4MB
-    if (file.size > maxSize) {
-      return NextResponse.json(
-        { error: "File size must be less than 4MB" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -60,7 +37,7 @@ export async function POST(request: Request) {
     if (!rollNo || !name || !department || !batch) {
       return NextResponse.json(
         { error: "Missing required fields in extracted data" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -69,7 +46,7 @@ export async function POST(request: Request) {
     if (!rollNoPattern.test(rollNo)) {
       return NextResponse.json(
         { error: "Invalid roll number format" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -87,14 +64,14 @@ export async function POST(request: Request) {
             error:
               "This student has likely graduated. Only current students can register.",
           },
-          { status: 400 }
+          { status: 400 },
         );
       }
 
       if (batchYear > currentYear) {
         return NextResponse.json(
           { error: "Invalid batch year. Cannot register future students." },
-          { status: 400 }
+          { status: 400 },
         );
       }
     }
@@ -110,18 +87,9 @@ export async function POST(request: Request) {
           success: false,
           error: "This roll number is already registered",
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
-
-    // Convert file to buffer for upload
-    const arrayBuffer = await file.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
-
-    // Upload image to Cloudinary
-    console.log("Uploading ID card to Cloudinary...");
-    const imageUrl = await uploadToCloudinary(buffer, "id-cards");
-    console.log("Upload successful:", imageUrl);
 
     return NextResponse.json({
       success: true,
@@ -131,7 +99,6 @@ export async function POST(request: Request) {
         department,
         batch,
         degreeProgram,
-        imageUrl,
       },
     });
   } catch (error) {
@@ -143,7 +110,7 @@ export async function POST(request: Request) {
     }
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
