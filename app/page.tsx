@@ -1,12 +1,13 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { FeatureCard } from "@/components/blocks/feature-card";
 import { Shield, Sparkles, Users } from "lucide-react";
 
 export default function Home() {
   return (
     <main className="min-h-screen">
       {/* Navigation */}
-      <nav className="border-b">
+      <nav className="border-b bg-white/80 backdrop-blur-sm fixed top-0 w-full z-50">
         <div className="container mx-auto px-4 h-16 flex items-center justify-between">
           <div className="text-2xl font-bold text-blue-600">UOSphere</div>
           <div className="flex gap-4">
@@ -21,27 +22,29 @@ export default function Home() {
       </nav>
 
       {/* Hero Section */}
-      <section className="container mx-auto px-4 py-20 text-center">
-        <div className="max-w-4xl mx-auto">
-          <h1 className="text-5xl md:text-6xl font-bold mb-6 bg-gradient-to-r from-blue-600 to-blue-400 bg-clip-text text-transparent">
-            Find Your Tribe at UOS
-          </h1>
-          <p className="text-xl text-gray-600 mb-8">
-            Connect with students who share your interests, form study groups,
-            and build meaningful connections within the University of Sindh
-            community.
-          </p>
-          <div className="flex gap-4 justify-center">
-            <Link href="/signup">
-              <Button size="lg" className="text-lg px-8">
-                Get Started
-              </Button>
-            </Link>
-            <Link href="/login">
-              <Button size="lg" variant="outline" className="text-lg px-8">
-                Sign In
-              </Button>
-            </Link>
+      <section className="min-h-screen flex items-center justify-center pt-16">
+        <div className="container mx-auto px-4 text-center">
+          <div className="max-w-4xl mx-auto">
+            <h1 className="text-5xl md:text-6xl lg:text-7xl font-bold mb-6 bg-gradient-to-r from-blue-600 to-blue-400 bg-clip-text text-transparent">
+              Find Your Tribe at UOS
+            </h1>
+            <p className="text-xl md:text-2xl text-gray-600 mb-8">
+              Connect with students who share your interests, form study groups,
+              and build meaningful connections within the University of Sindh
+              community.
+            </p>
+            <div className="flex gap-4 justify-center">
+              <Link href="/signup">
+                <Button size="lg" className="text-lg px-8">
+                  Get Started
+                </Button>
+              </Link>
+              <Link href="/login">
+                <Button size="lg" variant="outline" className="text-lg px-8">
+                  Sign In
+                </Button>
+              </Link>
+            </div>
           </div>
         </div>
       </section>
@@ -49,41 +52,21 @@ export default function Home() {
       {/* Features */}
       <section className="container mx-auto px-4 py-16">
         <div className="grid md:grid-cols-3 gap-8">
-          <div className="p-6 rounded-lg border bg-card text-center">
-            <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Shield className="w-6 h-6 text-blue-600" />
-            </div>
-            <h3 className="text-xl font-semibold mb-2">
-              Verified Students Only
-            </h3>
-            <p className="text-gray-600">
-              Automatic ID card verification ensures you're connecting with real
-              UOS students.
-            </p>
-          </div>
-
-          <div className="p-6 rounded-lg border bg-card text-center">
-            <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Sparkles className="w-6 h-6 text-blue-600" />
-            </div>
-            <h3 className="text-xl font-semibold mb-2">
-              Interest-Based Matching
-            </h3>
-            <p className="text-gray-600">
-              Find students with similar academic interests, hobbies, and goals.
-            </p>
-          </div>
-
-          <div className="p-6 rounded-lg border bg-card text-center">
-            <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Users className="w-6 h-6 text-blue-600" />
-            </div>
-            <h3 className="text-xl font-semibold mb-2">Communities & Groups</h3>
-            <p className="text-gray-600">
-              Join department communities, study groups, and interest-based
-              clubs.
-            </p>
-          </div>
+          <FeatureCard
+            icon={Shield}
+            title="Verified Students Only"
+            description="Automatic ID card verification ensures you're connecting with real UOS students."
+          />
+          <FeatureCard
+            icon={Sparkles}
+            title="Interest-Based Matching"
+            description="Find students with similar academic interests, hobbies, and goals."
+          />
+          <FeatureCard
+            icon={Users}
+            title="Communities & Groups"
+            description="Join department communities, study groups, and interest-based clubs."
+          />
         </div>
       </section>
 
