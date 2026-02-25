@@ -5,6 +5,7 @@ export const config = {
     "/home/:path*",
     "/profile/:path*",
     "/discover/:path*",
+    "/connections/:path*",
     "/communities/:path*",
     "/messages/:path*",
   ],

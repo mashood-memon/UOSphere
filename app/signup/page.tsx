@@ -165,6 +165,26 @@ export default function SignupPage() {
 
   const handleSubmit = async () => {
     try {
+      // Upload profile picture to Cloudinary first if provided
+      let profilePicUrl: string | null = null;
+      if (formData.profilePicture) {
+        try {
+          const picFormData = new FormData();
+          picFormData.append("file", formData.profilePicture);
+          const picRes = await fetch("/api/auth/upload-profile-pic", {
+            method: "POST",
+            body: picFormData,
+          });
+          if (picRes.ok) {
+            const picData = await picRes.json();
+            profilePicUrl = picData.url;
+          }
+        } catch (err) {
+          console.error("Profile pic upload failed:", err);
+          // Continue registration without profile pic
+        }
+      }
+
       // Prepare data for registration
       const registrationData = {
         name: formData.name,
@@ -177,7 +197,7 @@ export default function SignupPage() {
         degreeProgram: formData.degreeProgram,
         campus: formData.campus,
         bio: formData.bio,
-        profilePicUrl: null, // TODO: Add profile pic upload in settings
+        profilePicUrl,
         interests: formData.selectedInterests,
         lookingFor: formData.lookingFor,
       };

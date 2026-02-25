@@ -58,11 +58,12 @@ model PasswordReset {
 }
 
 model Interest {
-    id       String @id @default(uuid())
+    id       String  @id @default(uuid())
     userId   String
     category String
     tag      String
-    user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+    isCustom Boolean @default(false)
+    user     User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
     @@unique([userId, tag])
 }
