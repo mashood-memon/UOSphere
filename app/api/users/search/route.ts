@@ -25,14 +25,49 @@ export async function GET(request: NextRequest) {
     const lookingFor =
       searchParams.get("lookingFor")?.split(",").filter(Boolean) || [];
     const sort = searchParams.get("sort") || "compatible";
+    const view = searchParams.get("view") || "all";
     const page = parseInt(searchParams.get("page") || "1");
     const limit = 20;
     const skip = (page - 1) * limit;
+
+    // Fetch all connections for current user to determine statuses
+    const existingConnections = await prisma.connection.findMany({
+      where: {
+        OR: [{ senderId: session.user.id }, { receiverId: session.user.id }],
+      },
+      select: { senderId: true, receiverId: true, status: true },
+    });
+
+    // Build a map: userId -> connectionStatus
+    const connectionStatusMap = new Map<string, string>();
+    const acceptedIds: string[] = [];
+    for (const conn of existingConnections) {
+      const otherId =
+        conn.senderId === session.user.id ? conn.receiverId : conn.senderId;
+      if (conn.status === "accepted") {
+        connectionStatusMap.set(otherId, "connected");
+        acceptedIds.push(otherId);
+      } else if (conn.status === "pending") {
+        connectionStatusMap.set(
+          otherId,
+          conn.senderId === session.user.id
+            ? "pending_sent"
+            : "pending_received",
+        );
+      }
+    }
 
     // Build filter conditions
     const where: Record<string, unknown> = {
       id: { not: session.user.id }, // Exclude current user
     };
+
+    // Filter by view: "connections" shows only accepted, "all" excludes accepted
+    if (view === "connections") {
+      where.id = { in: acceptedIds };
+    } else if (acceptedIds.length > 0) {
+      where.id = { notIn: [session.user.id, ...acceptedIds] };
+    }
 
     // Text search on name or roll number
     if (query) {
@@ -97,11 +132,7 @@ export async function GET(request: NextRequest) {
         },
       },
       orderBy:
-        sort === "recent"
-          ? { createdAt: "desc" }
-          : sort === "name"
-            ? { name: "asc" }
-            : { createdAt: "desc" }, // Default; we'll sort by match client-side for "compatible"
+        sort === "recent" ? { createdAt: "desc" } : { createdAt: "desc" }, // Default; we'll sort by match client-side for "compatible"
       skip,
       take: limit,
     });
@@ -133,6 +164,7 @@ export async function GET(request: NextRequest) {
         matchPercentage: match.score,
         matchLabel: match.label,
         sharedInterests: match.sharedInterests,
+        connectionStatus: connectionStatusMap.get(user.id) || null,
       };
     });
 

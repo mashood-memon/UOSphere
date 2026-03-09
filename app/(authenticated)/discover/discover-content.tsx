@@ -39,6 +39,7 @@ interface UserResult {
   connectionsCount: number;
   matchPercentage: number;
   sharedInterests: string[];
+  connectionStatus: string | null;
 }
 
 const departments = [
@@ -68,6 +69,7 @@ const departments = [
   "Nutrition & Food Sciences",
   "Medical Laboratory Technology",
   "Environmental Science",
+  "International Relations",
   "Physics",
   "Chemistry",
   "Zoology",
@@ -83,7 +85,6 @@ const batches = ["2K22", "2K23", "2K24", "2K25", "2K26"];
 const sortOptions = [
   { value: "compatible", label: "Most Compatible" },
   { value: "recent", label: "Recently Joined" },
-  { value: "name", label: "Name (A-Z)" },
 ];
 
 export default function DiscoverContent() {
@@ -105,6 +106,7 @@ export default function DiscoverContent() {
     searchParams.get("lookingFor")?.split(",").filter(Boolean) || [],
   );
   const [sort, setSort] = useState(searchParams.get("sort") || "compatible");
+  const [view, setView] = useState(searchParams.get("view") || "all");
 
   // UI state
   const [users, setUsers] = useState<UserResult[]>([]);
@@ -126,8 +128,17 @@ export default function DiscoverContent() {
     if (selectedLookingFor.length > 0)
       params.set("lookingFor", selectedLookingFor.join(","));
     if (sort !== "compatible") params.set("sort", sort);
+    if (view !== "all") params.set("view", view);
     return params.toString();
-  }, [query, department, batch, selectedInterests, selectedLookingFor, sort]);
+  }, [
+    query,
+    department,
+    batch,
+    selectedInterests,
+    selectedLookingFor,
+    sort,
+    view,
+  ]);
 
   const fetchUsers = useCallback(
     async (pageNum: number = 1, append: boolean = false) => {
@@ -144,6 +155,7 @@ export default function DiscoverContent() {
         if (selectedLookingFor.length > 0)
           params.set("lookingFor", selectedLookingFor.join(","));
         params.set("sort", sort);
+        params.set("view", view);
         params.set("page", pageNum.toString());
 
         const res = await fetch(`/api/users/search?${params.toString()}`);
@@ -165,7 +177,15 @@ export default function DiscoverContent() {
         setLoadingMore(false);
       }
     },
-    [query, department, batch, selectedInterests, selectedLookingFor, sort],
+    [
+      query,
+      department,
+      batch,
+      selectedInterests,
+      selectedLookingFor,
+      sort,
+      view,
+    ],
   );
 
   // Run search when filters change
@@ -179,7 +199,15 @@ export default function DiscoverContent() {
       });
     }, 300);
     return () => clearTimeout(timer);
-  }, [query, department, batch, selectedInterests, selectedLookingFor, sort]);
+  }, [
+    query,
+    department,
+    batch,
+    selectedInterests,
+    selectedLookingFor,
+    sort,
+    view,
+  ]);
 
   async function handleConnect(userId: string) {
     setConnectingId(userId);
@@ -192,12 +220,15 @@ export default function DiscoverContent() {
 
       if (res.ok) {
         toast({
-          title: "Connection request sent!",
+          title: "Request sent!",
           description: "They'll be notified of your request.",
         });
-        // Remove from list
-        setUsers((prev) => prev.filter((u) => u.id !== userId));
-        setTotalCount((prev) => prev - 1);
+        // Update connection status in local state
+        setUsers((prev) =>
+          prev.map((u) =>
+            u.id === userId ? { ...u, connectionStatus: "pending_sent" } : u,
+          ),
+        );
       } else {
         const data = await res.json();
         toast({
@@ -438,9 +469,31 @@ export default function DiscoverContent() {
         </div>
       )}
 
-      {/* Results Header */}
-      <div className="flex items-center justify-between mb-4">
-        <p className="text-sm text-muted-foreground">
+      {/* View Toggle */}
+      <div className="flex items-center gap-2 mb-4">
+        <div className="flex rounded-lg border overflow-hidden">
+          <button
+            onClick={() => setView("all")}
+            className={`px-4 py-2 text-sm font-medium transition-colors ${
+              view === "all"
+                ? "bg-blue-600 text-white"
+                : "bg-background text-muted-foreground hover:bg-muted"
+            }`}
+          >
+            All Students
+          </button>
+          <button
+            onClick={() => setView("connections")}
+            className={`px-4 py-2 text-sm font-medium transition-colors ${
+              view === "connections"
+                ? "bg-blue-600 text-white"
+                : "bg-background text-muted-foreground hover:bg-muted"
+            }`}
+          >
+            My Connections
+          </button>
+        </div>
+        <p className="text-sm text-muted-foreground ml-auto">
           {loading ? (
             "Searching..."
           ) : (
@@ -448,7 +501,9 @@ export default function DiscoverContent() {
               <span className="font-semibold text-foreground">
                 {totalCount}
               </span>{" "}
-              student{totalCount !== 1 ? "s" : ""} found
+              {view === "connections"
+                ? `connection${totalCount !== 1 ? "s" : ""}`
+                : `student${totalCount !== 1 ? "s" : ""} found`}
             </>
           )}
         </p>
@@ -469,6 +524,7 @@ export default function DiscoverContent() {
               <UserCard
                 key={user.id}
                 user={user}
+                connectionStatus={user.connectionStatus}
                 onConnect={handleConnect}
                 isConnecting={connectingId === user.id}
                 currentUserId={session?.user?.id}
