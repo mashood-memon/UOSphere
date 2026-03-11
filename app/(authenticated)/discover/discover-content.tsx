@@ -31,7 +31,6 @@ interface UserResult {
   department: string;
   batch: string;
   batchYear: number;
-  campus: string | null;
   bio: string | null;
   profilePicUrl: string | null;
   interests: { category: string; tag: string }[];
@@ -82,9 +81,18 @@ const departments = [
 
 const batches = ["2K22", "2K23", "2K24", "2K25", "2K26"];
 
+const yearOptions = [
+  { value: "1", label: "First Year" },
+  { value: "2", label: "Second Year" },
+  { value: "3", label: "Third Year" },
+  { value: "4", label: "Final Year" },
+];
+
 const sortOptions = [
   { value: "compatible", label: "Most Compatible" },
   { value: "recent", label: "Recently Joined" },
+  { value: "department", label: "Same Department" },
+  { value: "batch", label: "Same Batch" },
 ];
 
 export default function DiscoverContent() {
@@ -99,6 +107,7 @@ export default function DiscoverContent() {
     searchParams.get("department") || "",
   );
   const [batch, setBatch] = useState(searchParams.get("batch") || "");
+  const [year, setYear] = useState(searchParams.get("year") || "");
   const [selectedInterests, setSelectedInterests] = useState<string[]>(
     searchParams.get("interests")?.split(",").filter(Boolean) || [],
   );
@@ -123,6 +132,7 @@ export default function DiscoverContent() {
     if (query) params.set("q", query);
     if (department) params.set("department", department);
     if (batch) params.set("batch", batch);
+    if (year) params.set("year", year);
     if (selectedInterests.length > 0)
       params.set("interests", selectedInterests.join(","));
     if (selectedLookingFor.length > 0)
@@ -134,6 +144,7 @@ export default function DiscoverContent() {
     query,
     department,
     batch,
+    year,
     selectedInterests,
     selectedLookingFor,
     sort,
@@ -150,6 +161,7 @@ export default function DiscoverContent() {
         if (query) params.set("q", query);
         if (department) params.set("department", department);
         if (batch) params.set("batch", batch);
+        if (year) params.set("year", year);
         if (selectedInterests.length > 0)
           params.set("interests", selectedInterests.join(","));
         if (selectedLookingFor.length > 0)
@@ -181,6 +193,7 @@ export default function DiscoverContent() {
       query,
       department,
       batch,
+      year,
       selectedInterests,
       selectedLookingFor,
       sort,
@@ -203,6 +216,7 @@ export default function DiscoverContent() {
     query,
     department,
     batch,
+    year,
     selectedInterests,
     selectedLookingFor,
     sort,
@@ -264,6 +278,7 @@ export default function DiscoverContent() {
     setQuery("");
     setDepartment("");
     setBatch("");
+    setYear("");
     setSelectedInterests([]);
     setSelectedLookingFor([]);
     setSort("compatible");
@@ -273,6 +288,7 @@ export default function DiscoverContent() {
     query ||
     department ||
     batch ||
+    year ||
     selectedInterests.length > 0 ||
     selectedLookingFor.length > 0;
 
@@ -333,8 +349,8 @@ export default function DiscoverContent() {
       {/* Filters Panel */}
       {filtersOpen && (
         <div className="bg-white rounded-xl border shadow-sm p-6 mb-6 space-y-5">
-          {/* Department & Batch Row */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {/* Department, Batch & Year Row */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
               <label className="text-sm font-medium mb-1.5 block">
                 Department
@@ -363,6 +379,21 @@ export default function DiscoverContent() {
                 {batches.map((b) => (
                   <option key={b} value={b}>
                     {b}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="text-sm font-medium mb-1.5 block">Year</label>
+              <select
+                value={year}
+                onChange={(e) => setYear(e.target.value)}
+                className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm"
+              >
+                <option value="">All Years</option>
+                {yearOptions.map((y) => (
+                  <option key={y.value} value={y.value}>
+                    {y.label}
                   </option>
                 ))}
               </select>
@@ -443,6 +474,16 @@ export default function DiscoverContent() {
                     <X
                       className="w-3 h-3 cursor-pointer"
                       onClick={() => setBatch("")}
+                    />
+                  </Badge>
+                )}
+                {year && (
+                  <Badge variant="secondary" className="gap-1">
+                    {yearOptions.find((y) => y.value === year)?.label ||
+                      `Year ${year}`}
+                    <X
+                      className="w-3 h-3 cursor-pointer"
+                      onClick={() => setYear("")}
                     />
                   </Badge>
                 )}

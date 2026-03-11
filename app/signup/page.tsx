@@ -31,6 +31,8 @@ import {
   Trophy,
   PartyPopper,
   MessageCircle,
+  HelpCircle,
+  Plus,
 } from "lucide-react";
 import { extractTextFromIDCard } from "@/lib/ocr-client";
 
@@ -121,7 +123,7 @@ const lookingForOptions = [
 export default function SignupPage() {
   const { toast } = useToast();
   const [currentStep, setCurrentStep] = useState(1);
-  const totalSteps = 5;
+  const totalSteps = 6;
 
   // Form state
   const [formData, setFormData] = useState({
@@ -133,7 +135,6 @@ export default function SignupPage() {
     department: "",
     batch: "",
     degreeProgram: "",
-    campus: "",
     // Step 3
     email: "",
     phone: "",
@@ -145,6 +146,9 @@ export default function SignupPage() {
     selectedInterests: [] as string[],
     // Step 5
     lookingFor: [] as string[],
+    // Step 6
+    coursesCanHelp: [] as string[],
+    coursesNeedHelp: [] as string[],
   });
 
   const steps = [
@@ -160,6 +164,11 @@ export default function SignupPage() {
       number: 5,
       title: "What You're Looking For",
       description: "Set your goals",
+    },
+    {
+      number: 6,
+      title: "Course Help",
+      description: "Help & get help",
     },
   ];
 
@@ -195,11 +204,12 @@ export default function SignupPage() {
         department: formData.department,
         batch: formData.batch,
         degreeProgram: formData.degreeProgram,
-        campus: formData.campus,
         bio: formData.bio,
         profilePicUrl,
         interests: formData.selectedInterests,
         lookingFor: formData.lookingFor,
+        coursesCanHelp: formData.coursesCanHelp,
+        coursesNeedHelp: formData.coursesNeedHelp,
       };
 
       const response = await fetch("/api/auth/register", {
@@ -343,6 +353,12 @@ export default function SignupPage() {
               )}
               {currentStep === 5 && (
                 <StepFiveLookingFor
+                  formData={formData}
+                  setFormData={setFormData}
+                />
+              )}
+              {currentStep === 6 && (
+                <StepSixCourseHelp
                   formData={formData}
                   setFormData={setFormData}
                 />
@@ -1232,6 +1248,160 @@ function StepFiveLookingFor({ formData, setFormData }: StepProps) {
           </p>
         </div>
       )}
+    </div>
+  );
+}
+
+// Step 6: Course Help Component
+function StepSixCourseHelp({ formData, setFormData }: StepProps) {
+  const [canHelpInput, setCanHelpInput] = useState("");
+  const [needHelpInput, setNeedHelpInput] = useState("");
+
+  const addCourse = (
+    type: "coursesCanHelp" | "coursesNeedHelp",
+    value: string,
+  ) => {
+    const trimmed = value.trim();
+    if (!trimmed) return;
+    const current = formData[type];
+    if (current.length >= 10) return;
+    if (current.some((c: string) => c.toLowerCase() === trimmed.toLowerCase()))
+      return;
+    setFormData({ ...formData, [type]: [...current, trimmed] });
+  };
+
+  const removeCourse = (
+    type: "coursesCanHelp" | "coursesNeedHelp",
+    index: number,
+  ) => {
+    const current = [...formData[type]];
+    current.splice(index, 1);
+    setFormData({ ...formData, [type]: current });
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="text-center">
+        <h3 className="text-base md:text-lg font-semibold mb-2">Course Help</h3>
+        <p className="text-xs md:text-sm text-gray-600">
+          Tell us which courses you can help others with, and which ones you
+          need help in. This is optional but helps with better matching!
+        </p>
+      </div>
+
+      {/* Courses Can Help With */}
+      <div className="space-y-3">
+        <Label className="flex items-center gap-2">
+          <GraduationCap className="w-4 h-4 text-green-600" />
+          Courses You Can Help With
+          <span className="text-xs text-gray-400">(max 10)</span>
+        </Label>
+        <div className="flex gap-2">
+          <Input
+            value={canHelpInput}
+            onChange={(e) => setCanHelpInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                addCourse("coursesCanHelp", canHelpInput);
+                setCanHelpInput("");
+              }
+            }}
+            placeholder="e.g. Data Structures, OOP, Calculus"
+            disabled={formData.coursesCanHelp.length >= 10}
+          />
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            onClick={() => {
+              addCourse("coursesCanHelp", canHelpInput);
+              setCanHelpInput("");
+            }}
+            disabled={
+              formData.coursesCanHelp.length >= 10 || !canHelpInput.trim()
+            }
+          >
+            <Plus className="w-4 h-4" />
+          </Button>
+        </div>
+        {formData.coursesCanHelp.length > 0 && (
+          <div className="flex flex-wrap gap-2">
+            {formData.coursesCanHelp.map((course: string, index: number) => (
+              <span
+                key={index}
+                className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700"
+              >
+                {course}
+                <button
+                  type="button"
+                  onClick={() => removeCourse("coursesCanHelp", index)}
+                  className="hover:text-green-900"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Courses Need Help In */}
+      <div className="space-y-3">
+        <Label className="flex items-center gap-2">
+          <HelpCircle className="w-4 h-4 text-orange-500" />
+          Courses You Need Help In
+          <span className="text-xs text-gray-400">(max 10)</span>
+        </Label>
+        <div className="flex gap-2">
+          <Input
+            value={needHelpInput}
+            onChange={(e) => setNeedHelpInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                addCourse("coursesNeedHelp", needHelpInput);
+                setNeedHelpInput("");
+              }
+            }}
+            placeholder="e.g. Linear Algebra, Physics, DSA"
+            disabled={formData.coursesNeedHelp.length >= 10}
+          />
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            onClick={() => {
+              addCourse("coursesNeedHelp", needHelpInput);
+              setNeedHelpInput("");
+            }}
+            disabled={
+              formData.coursesNeedHelp.length >= 10 || !needHelpInput.trim()
+            }
+          >
+            <Plus className="w-4 h-4" />
+          </Button>
+        </div>
+        {formData.coursesNeedHelp.length > 0 && (
+          <div className="flex flex-wrap gap-2">
+            {formData.coursesNeedHelp.map((course: string, index: number) => (
+              <span
+                key={index}
+                className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-700"
+              >
+                {course}
+                <button
+                  type="button"
+                  onClick={() => removeCourse("coursesNeedHelp", index)}
+                  className="hover:text-orange-900"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
 
       <div className="bg-green-50 border border-green-200 rounded-lg p-4">
         <div className="flex items-center gap-2 mb-2">
@@ -1239,8 +1409,8 @@ function StepFiveLookingFor({ formData, setFormData }: StepProps) {
           <p className="text-sm text-green-700 font-semibold">Almost Done!</p>
         </div>
         <p className="text-sm text-green-600">
-          Click "Create Account" to join UOSphere and start connecting with your
-          peers!
+          Click &quot;Create Account&quot; to join UOSphere and start connecting
+          with your peers!
         </p>
       </div>
     </div>

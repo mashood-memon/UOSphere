@@ -37,7 +37,6 @@ interface UserProfile {
   batch: string;
   batchYear: number;
   degreeProgram: string | null;
-  campus: string | null;
   bio: string | null;
   profilePicUrl: string | null;
   interests: { category: string; tag: string; isCustom: boolean }[];

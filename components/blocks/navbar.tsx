@@ -25,8 +25,18 @@ import {
   X,
 } from "lucide-react";
 import { signOut } from "next-auth/react";
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { cn } from "@/lib/utils";
+
+interface Notification {
+  id: string;
+  type: string;
+  title: string;
+  message: string;
+  linkUrl: string | null;
+  isRead: boolean;
+  createdAt: string;
+}
 
 const navItems = [
   { href: "/home", label: "Home", icon: Home },
@@ -38,6 +48,56 @@ export function Navbar() {
   const pathname = usePathname();
   const { data: session } = useSession();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [notifOpen, setNotifOpen] = useState(false);
+  const [notifLoading, setNotifLoading] = useState(false);
+
+  const fetchUnreadCount = useCallback(async () => {
+    try {
+      const res = await fetch("/api/notifications?count=true");
+      if (res.ok) {
+        const data = await res.json();
+        setUnreadCount(data.unreadCount);
+      }
+    } catch {
+      // silently fail
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!session?.user) return;
+    fetchUnreadCount();
+    const interval = setInterval(fetchUnreadCount, 30000); // Poll every 30s
+    return () => clearInterval(interval);
+  }, [session?.user, fetchUnreadCount]);
+
+  async function fetchNotifications() {
+    setNotifLoading(true);
+    try {
+      const res = await fetch("/api/notifications?page=1");
+      if (res.ok) {
+        const data = await res.json();
+        setNotifications(data.notifications);
+      }
+    } catch {
+      // silently fail
+    } finally {
+      setNotifLoading(false);
+    }
+  }
+
+  async function markAsRead(notifId: string) {
+    try {
+      await fetch(`/api/notifications/${notifId}`, { method: "PUT" });
+      setNotifications((prev) =>
+        prev.map((n) => (n.id === notifId ? { ...n, isRead: true } : n)),
+      );
+      setUnreadCount((prev) => Math.max(0, prev - 1));
+    } catch {
+      // silently fail
+    }
+  }
 
   if (!session?.user) return null;
 
@@ -85,6 +145,87 @@ export function Navbar() {
 
           {/* Right Side */}
           <div className="flex items-center gap-2">
+            {/* Notification Bell */}
+            <DropdownMenu
+              open={notifOpen}
+              onOpenChange={(open) => {
+                setNotifOpen(open);
+                if (open) fetchNotifications();
+              }}
+            >
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="relative">
+                  <Bell className="w-5 h-5" />
+                  {unreadCount > 0 && (
+                    <span className="absolute -top-0.5 -right-0.5 h-4 min-w-[16px] px-1 flex items-center justify-center rounded-full bg-red-500 text-white text-[10px] font-bold">
+                      {unreadCount > 99 ? "99+" : unreadCount}
+                    </span>
+                  )}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-80">
+                <div className="px-3 py-2 flex items-center justify-between">
+                  <p className="text-sm font-semibold">Notifications</p>
+                  {unreadCount > 0 && (
+                    <span className="text-xs text-muted-foreground">
+                      {unreadCount} unread
+                    </span>
+                  )}
+                </div>
+                <DropdownMenuSeparator />
+                {notifLoading ? (
+                  <div className="px-3 py-6 text-center text-sm text-muted-foreground">
+                    Loading...
+                  </div>
+                ) : notifications.length === 0 ? (
+                  <div className="px-3 py-6 text-center text-sm text-muted-foreground">
+                    No notifications yet
+                  </div>
+                ) : (
+                  <div className="max-h-80 overflow-y-auto">
+                    {notifications.slice(0, 10).map((notif) => (
+                      <DropdownMenuItem key={notif.id} asChild>
+                        <Link
+                          href={notif.linkUrl || "#"}
+                          className={cn(
+                            "flex flex-col items-start gap-1 px-3 py-2.5 cursor-pointer",
+                            !notif.isRead && "bg-blue-50/50",
+                          )}
+                          onClick={() => {
+                            if (!notif.isRead) markAsRead(notif.id);
+                            setNotifOpen(false);
+                          }}
+                        >
+                          <div className="flex items-center gap-2 w-full">
+                            {!notif.isRead && (
+                              <span className="w-2 h-2 rounded-full bg-blue-500 flex-shrink-0" />
+                            )}
+                            <p className="text-sm font-medium line-clamp-1">
+                              {notif.title}
+                            </p>
+                          </div>
+                          <p className="text-xs text-muted-foreground line-clamp-2 pl-4">
+                            {notif.message}
+                          </p>
+                          <p className="text-[10px] text-muted-foreground pl-4">
+                            {new Date(notif.createdAt).toLocaleDateString(
+                              "en-US",
+                              {
+                                month: "short",
+                                day: "numeric",
+                                hour: "numeric",
+                                minute: "2-digit",
+                              },
+                            )}
+                          </p>
+                        </Link>
+                      </DropdownMenuItem>
+                    ))}
+                  </div>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+
             {/* Profile Dropdown */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>

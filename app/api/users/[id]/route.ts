@@ -30,7 +30,6 @@ export async function GET(
         batch: true,
         batchYear: true,
         degreeProgram: true,
-        campus: true,
         bio: true,
         profilePicUrl: true,
         createdAt: true,

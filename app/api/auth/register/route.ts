@@ -14,11 +14,12 @@ export async function POST(request: Request) {
       department,
       batch,
       degreeProgram,
-      campus,
       bio,
       profilePicUrl,
       interests,
       lookingFor,
+      coursesCanHelp,
+      coursesNeedHelp,
     } = body;
 
     // Validation
@@ -71,7 +72,6 @@ export async function POST(request: Request) {
           batch,
           batchYear,
           degreeProgram: degreeProgram || null,
-          campus: campus || null,
           bio: bio || null,
           profilePicUrl: profilePicUrl || null,
           isVerified: true, // Auto-verified via OCR
@@ -101,6 +101,64 @@ export async function POST(request: Request) {
         await tx.lookingFor.createMany({
           data: lookingForData,
         });
+      }
+
+      // Create coursesCanHelp entries
+      if (
+        coursesCanHelp &&
+        Array.isArray(coursesCanHelp) &&
+        coursesCanHelp.length > 0
+      ) {
+        for (const courseName of coursesCanHelp) {
+          const trimmed = (courseName as string).trim();
+          if (!trimmed) continue;
+          const existing = await tx.courseHelp.findFirst({
+            where: { courseName: { equals: trimmed, mode: "insensitive" } },
+          });
+          if (existing) {
+            await tx.user.update({
+              where: { id: newUser.id },
+              data: { coursesCanHelp: { connect: { id: existing.id } } },
+            });
+          } else {
+            const created = await tx.courseHelp.create({
+              data: { courseName: trimmed },
+            });
+            await tx.user.update({
+              where: { id: newUser.id },
+              data: { coursesCanHelp: { connect: { id: created.id } } },
+            });
+          }
+        }
+      }
+
+      // Create coursesNeedHelp entries
+      if (
+        coursesNeedHelp &&
+        Array.isArray(coursesNeedHelp) &&
+        coursesNeedHelp.length > 0
+      ) {
+        for (const courseName of coursesNeedHelp) {
+          const trimmed = (courseName as string).trim();
+          if (!trimmed) continue;
+          const existing = await tx.courseHelp.findFirst({
+            where: { courseName: { equals: trimmed, mode: "insensitive" } },
+          });
+          if (existing) {
+            await tx.user.update({
+              where: { id: newUser.id },
+              data: { coursesNeedHelp: { connect: { id: existing.id } } },
+            });
+          } else {
+            const created = await tx.courseHelp.create({
+              data: { courseName: trimmed },
+            });
+            await tx.user.update({
+              where: { id: newUser.id },
+              data: { coursesNeedHelp: { connect: { id: created.id } } },
+            });
+          }
+        }
       }
 
       return newUser;

@@ -50,7 +50,7 @@ export async function POST(request: Request) {
       );
     }
 
-    // Validate batch year (improved logic - allow up to 6 years)
+    // Validate batch year (4-year degree programs)
     const currentYear = new Date().getFullYear();
     const batchYearMatch = batch.match(/2K(\d{2})/);
 
@@ -58,7 +58,7 @@ export async function POST(request: Request) {
       const batchYear = 2000 + parseInt(batchYearMatch[1]);
       const yearsSinceBatch = currentYear - batchYear;
 
-      if (yearsSinceBatch > 6) {
+      if (yearsSinceBatch > 4) {
         return NextResponse.json(
           {
             error:

@@ -17,6 +17,7 @@ export async function GET(request: NextRequest) {
 
     const searchParams = request.nextUrl.searchParams;
     const limit = parseInt(searchParams.get("limit") || "6");
+    const type = searchParams.get("type") || "general";
 
     // Fetch current user's match data once
     const currentUserData = await fetchMatchData(session.user.id);
@@ -47,7 +48,6 @@ export async function GET(request: NextRequest) {
         department: true,
         batch: true,
         batchYear: true,
-        campus: true,
         bio: true,
         profilePicUrl: true,
         createdAt: true,
@@ -66,7 +66,7 @@ export async function GET(request: NextRequest) {
     });
 
     // Score and rank candidates using multi-factor matching
-    const scored = candidates.map((user) => {
+    let scored = candidates.map((user) => {
       const profileData: MatchInput = {
         interests: user.interests.map((i) => i.tag),
         department: user.department,
@@ -83,14 +83,40 @@ export async function GET(request: NextRequest) {
       return {
         ...user,
         _count: undefined,
-        coursesCanHelp: undefined,
-        coursesNeedHelp: undefined,
+        coursesCanHelp: user.coursesCanHelp.map((c) => c.courseName),
+        coursesNeedHelp: user.coursesNeedHelp.map((c) => c.courseName),
         connectionsCount,
         matchPercentage: match.score,
         matchLabel: match.label,
         sharedInterests: match.sharedInterests,
       };
     });
+
+    // For course-help type, only return users with course overlap
+    if (type === "course-help") {
+      const myCanHelp = new Set(
+        currentUserData.canHelpCourses.map((c) => c.toLowerCase()),
+      );
+      const myNeedHelp = new Set(
+        currentUserData.needHelpCourses.map((c) => c.toLowerCase()),
+      );
+
+      scored = scored.filter((user) => {
+        const candidate = candidates.find((c) => c.id === user.id);
+        if (!candidate) return false;
+        const theirCanHelp = candidate.coursesCanHelp.map((c) =>
+          c.courseName.toLowerCase(),
+        );
+        const theirNeedHelp = candidate.coursesNeedHelp.map((c) =>
+          c.courseName.toLowerCase(),
+        );
+        // I can help them OR they can help me
+        return (
+          theirNeedHelp.some((c) => myCanHelp.has(c)) ||
+          theirCanHelp.some((c) => myNeedHelp.has(c))
+        );
+      });
+    }
 
     // Sort by match percentage descending
     scored.sort((a, b) => b.matchPercentage - a.matchPercentage);

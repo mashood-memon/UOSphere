@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
     const query = searchParams.get("q") || "";
     const department = searchParams.get("department") || "";
     const batch = searchParams.get("batch") || "";
-    const campus = searchParams.get("campus") || "";
+    const year = searchParams.get("year") || "";
     const interests =
       searchParams.get("interests")?.split(",").filter(Boolean) || [];
     const lookingFor =
@@ -85,8 +85,11 @@ export async function GET(request: NextRequest) {
       where.batch = batch;
     }
 
-    if (campus) {
-      where.campus = { contains: campus, mode: "insensitive" };
+    // Filter by year (1=First Year, 2=Second, 3=Third, 4=Final)
+    if (year) {
+      const currentYear = new Date().getFullYear();
+      const targetBatchYear = currentYear - (parseInt(year) - 1);
+      where.batchYear = targetBatchYear;
     }
 
     // Filter by interests
@@ -116,7 +119,6 @@ export async function GET(request: NextRequest) {
         department: true,
         batch: true,
         batchYear: true,
-        campus: true,
         bio: true,
         profilePicUrl: true,
         createdAt: true,
@@ -158,8 +160,8 @@ export async function GET(request: NextRequest) {
       return {
         ...user,
         _count: undefined,
-        coursesCanHelp: undefined,
-        coursesNeedHelp: undefined,
+        coursesCanHelp: user.coursesCanHelp.map((c) => c.courseName),
+        coursesNeedHelp: user.coursesNeedHelp.map((c) => c.courseName),
         connectionsCount,
         matchPercentage: match.score,
         matchLabel: match.label,
@@ -168,9 +170,23 @@ export async function GET(request: NextRequest) {
       };
     });
 
-    // Sort by match percentage if "compatible" sort
+    // Sort results
     if (sort === "compatible") {
       usersWithMatch.sort((a, b) => b.matchPercentage - a.matchPercentage);
+    } else if (sort === "department") {
+      const myDept = currentUserData.department;
+      usersWithMatch.sort((a, b) => {
+        const aMatch = a.department === myDept ? 1 : 0;
+        const bMatch = b.department === myDept ? 1 : 0;
+        return bMatch - aMatch || b.matchPercentage - a.matchPercentage;
+      });
+    } else if (sort === "batch") {
+      const myBatchYear = currentUserData.batchYear;
+      usersWithMatch.sort((a, b) => {
+        const aMatch = a.batchYear === myBatchYear ? 1 : 0;
+        const bMatch = b.batchYear === myBatchYear ? 1 : 0;
+        return bMatch - aMatch || b.matchPercentage - a.matchPercentage;
+      });
     }
 
     return NextResponse.json({

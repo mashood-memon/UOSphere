@@ -13,7 +13,6 @@ import { useToast } from "@/hooks/use-toast";
 import {
   BookOpen,
   GraduationCap,
-  MapPin,
   Calendar,
   Users,
   UserPlus,
@@ -36,7 +35,6 @@ interface UserProfile {
   batch: string;
   batchYear: number;
   degreeProgram?: string | null;
-  campus?: string | null;
   bio?: string | null;
   profilePicUrl?: string | null;
   createdAt: string;
@@ -353,12 +351,6 @@ export default function ProfilePage() {
               <GraduationCap className="w-4 h-4 text-blue-600" />
               <span>{profile.batch}</span>
             </div>
-            {profile.campus && (
-              <div className="flex items-center gap-2 text-sm">
-                <MapPin className="w-4 h-4 text-blue-600" />
-                <span>{profile.campus}</span>
-              </div>
-            )}
             <div className="flex items-center gap-2 text-sm">
               <Users className="w-4 h-4 text-blue-600" />
               <span>{profile.connectionsCount} connections</span>

@@ -12,6 +12,9 @@ import {
   Sparkles,
   ArrowRight,
   Loader2,
+  GraduationCap,
+  Building2,
+  BookOpen,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
@@ -22,7 +25,6 @@ interface UserSuggestion {
   department: string;
   batch: string;
   batchYear: number;
-  campus: string | null;
   bio: string | null;
   profilePicUrl: string | null;
   interests: { category: string; tag: string }[];
@@ -36,12 +38,23 @@ export default function HomePage() {
   const { data: session } = useSession();
   const { toast } = useToast();
   const [suggestions, setSuggestions] = useState<UserSuggestion[]>([]);
+  const [deptPeers, setDeptPeers] = useState<UserSuggestion[]>([]);
+  const [courseMatches, setCourseMatches] = useState<UserSuggestion[]>([]);
+  const [seniors, setSeniors] = useState<UserSuggestion[]>([]);
   const [loading, setLoading] = useState(true);
   const [connectingId, setConnectingId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchSuggestions();
+    fetchCourseMatches();
   }, []);
+
+  useEffect(() => {
+    if (session?.user) {
+      fetchDeptPeers();
+      fetchSeniors();
+    }
+  }, [session?.user?.department, session?.user?.batch]);
 
   async function fetchSuggestions() {
     try {
@@ -54,6 +67,67 @@ export default function HomePage() {
       console.error("Failed to fetch suggestions:", error);
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function fetchDeptPeers() {
+    if (!session?.user?.department) return;
+    try {
+      const params = new URLSearchParams({
+        department: session.user.department,
+        sort: "department",
+        page: "1",
+      });
+      const res = await fetch(`/api/users/search?${params}`);
+      if (res.ok) {
+        const data = await res.json();
+        setDeptPeers(data.users.slice(0, 6));
+      }
+    } catch (error) {
+      console.error("Failed to fetch dept peers:", error);
+    }
+  }
+
+  async function fetchCourseMatches() {
+    try {
+      const res = await fetch(
+        "/api/users/suggestions?limit=6&type=course-help",
+      );
+      if (res.ok) {
+        const data = await res.json();
+        setCourseMatches(data.suggestions);
+      }
+    } catch (error) {
+      console.error("Failed to fetch course matches:", error);
+    }
+  }
+
+  async function fetchSeniors() {
+    if (!session?.user?.department || !session?.user?.batch) return;
+    try {
+      // Parse current user's batch year from batch string (e.g., "2K24" -> 2024)
+      const batchMatch = session.user.batch.match(/(\d)K(\d{2})/);
+      const myBatchYear = batchMatch
+        ? parseInt(`${batchMatch[1]}0${batchMatch[2]}`)
+        : 0;
+      if (!myBatchYear) return;
+
+      const params = new URLSearchParams({
+        department: session.user.department,
+        sort: "batch",
+        page: "1",
+      });
+      const res = await fetch(`/api/users/search?${params}`);
+      if (res.ok) {
+        const data = await res.json();
+        // Filter to only users with earlier batchYear (seniors)
+        const seniorUsers = data.users.filter(
+          (u: UserSuggestion) => u.batchYear < myBatchYear,
+        );
+        setSeniors(seniorUsers.slice(0, 6));
+      }
+    } catch (error) {
+      console.error("Failed to fetch seniors:", error);
     }
   }
 
@@ -203,6 +277,99 @@ export default function HomePage() {
           </div>
         )}
       </div>
+
+      {/* People from your Department */}
+      {deptPeers.length > 0 && (
+        <div className="mb-8">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <Building2 className="w-5 h-5 text-emerald-600" />
+              <h2 className="text-xl font-bold">
+                People from {session?.user?.department}
+              </h2>
+            </div>
+            <Link
+              href={`/discover?department=${encodeURIComponent(session?.user?.department || "")}&sort=department`}
+            >
+              <Button variant="ghost" size="sm" className="gap-1">
+                See All <ArrowRight className="w-4 h-4" />
+              </Button>
+            </Link>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {deptPeers.map((user) => (
+              <UserCard
+                key={user.id}
+                user={user}
+                onConnect={handleConnect}
+                isConnecting={connectingId === user.id}
+                currentUserId={session?.user?.id}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Course Help Matches */}
+      {courseMatches.length > 0 && (
+        <div className="mb-8">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <BookOpen className="w-5 h-5 text-orange-600" />
+              <h2 className="text-xl font-bold">Course Help Matches</h2>
+            </div>
+          </div>
+          <p className="text-sm text-muted-foreground mb-4">
+            Students who can help you or need help with courses you know
+          </p>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {courseMatches.map((user) => (
+              <UserCard
+                key={user.id}
+                user={user}
+                onConnect={handleConnect}
+                isConnecting={connectingId === user.id}
+                currentUserId={session?.user?.id}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Seniors from your Department */}
+      {seniors.length > 0 && (
+        <div className="mb-8">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <GraduationCap className="w-5 h-5 text-purple-600" />
+              <h2 className="text-xl font-bold">
+                Seniors from {session?.user?.department}
+              </h2>
+            </div>
+            <Link
+              href={`/discover?department=${encodeURIComponent(session?.user?.department || "")}&sort=batch`}
+            >
+              <Button variant="ghost" size="sm" className="gap-1">
+                See All <ArrowRight className="w-4 h-4" />
+              </Button>
+            </Link>
+          </div>
+          <p className="text-sm text-muted-foreground mb-4">
+            Connect with experienced students for mentorship and guidance
+          </p>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {seniors.map((user) => (
+              <UserCard
+                key={user.id}
+                user={user}
+                onConnect={handleConnect}
+                isConnecting={connectingId === user.id}
+                currentUserId={session?.user?.id}
+              />
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

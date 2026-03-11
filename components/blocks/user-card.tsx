@@ -10,10 +10,10 @@ import { MatchBadge } from "@/components/blocks/match-badge";
 import {
   GraduationCap,
   BookOpen,
-  MapPin,
   UserPlus,
   Clock,
   UserCheck,
+  HelpCircle,
 } from "lucide-react";
 
 interface UserCardProps {
@@ -23,7 +23,6 @@ interface UserCardProps {
     rollNo: string;
     department: string;
     batch: string;
-    campus?: string | null;
     bio?: string | null;
     profilePicUrl?: string | null;
     interests: { category: string; tag: string }[];
@@ -31,6 +30,8 @@ interface UserCardProps {
     matchLabel?: string | null;
     sharedInterests?: string[];
     connectionsCount?: number;
+    coursesCanHelp?: string[];
+    coursesNeedHelp?: string[];
   };
   connectionStatus?: string | null;
   onConnect?: (userId: string) => void;
@@ -104,12 +105,6 @@ export function UserCard({
                 <GraduationCap className="w-3.5 h-3.5" />
                 {user.batch}
               </span>
-              {user.campus && (
-                <span className="flex items-center gap-1">
-                  <MapPin className="w-3.5 h-3.5" />
-                  {user.campus}
-                </span>
-              )}
             </div>
 
             {/* Bio */}
@@ -143,6 +138,30 @@ export function UserCard({
                 {user.sharedInterests.slice(0, 3).join(", ")}
                 {user.sharedInterests.length > 3 ? "..." : ""}
               </p>
+            )}
+
+            {/* Course Help Tags */}
+            {((user.coursesCanHelp && user.coursesCanHelp.length > 0) ||
+              (user.coursesNeedHelp && user.coursesNeedHelp.length > 0)) && (
+              <div className="flex flex-wrap items-center gap-1.5 mt-2">
+                <HelpCircle className="w-3.5 h-3.5 text-muted-foreground" />
+                {user.coursesCanHelp?.slice(0, 2).map((course) => (
+                  <span
+                    key={course}
+                    className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200"
+                  >
+                    Can help: {course}
+                  </span>
+                ))}
+                {user.coursesNeedHelp?.slice(0, 2).map((course) => (
+                  <span
+                    key={course}
+                    className="text-[10px] px-1.5 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-200"
+                  >
+                    Needs: {course}
+                  </span>
+                ))}
+              </div>
             )}
           </div>
         </div>
